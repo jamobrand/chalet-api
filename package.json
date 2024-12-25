@@ -1,6 +1,6 @@
 {
   "name": "chalet-api",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "api for managing chalets and booking",
   "main": "dist/index.js",
   "scripts": {
