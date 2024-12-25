@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsc --project './tsconfig.build.json' --watch & NODE_ENV=development nodemon --trace-warnings ./dist/index.js",
     "build": "tsc --project './tsconfig.build.json'",
-    "start": "npm run build && NODE_ENV=production node --trace-warnings ./dist/index.js"
+    "start": "npm run build && NODE_ENV=production node --trace-warnings ./dist/index.js",
+    "prepare": "husky"
   },
   "repository": {
     "type": "git",
@@ -27,7 +28,10 @@
     "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
     "@types/node": "^22.10.2",
+    "husky": "^9.1.7",
     "nodemon": "^3.1.9",
     "ts-node": "^10.9.2"
   }
