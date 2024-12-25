@@ -6,11 +6,10 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import compressFilter from './common/utils/compressFilter.util';
 import { config } from './config/app.config';
-import { errorHandler } from './common/utils/errorHandler';
-//import { config } from './config/app.config';
+import httpStatus from 'http-status';
 
 const app = express();
-//const BASE_PATH = config.BASE_PATH;
+const BASE_PATH = config.BASE_PATH;
 
 // Helmet is used to secure this app by configuring the http-header
 app.use(helmet());
@@ -36,6 +35,10 @@ app.use(
   }),
 );
 
-app.use(errorHandler);
+app.get(`${BASE_PATH}/health`, (_req, res) => {
+  res.status(httpStatus.OK).json({
+    message: 'Hello Subscribers!!!',
+  });
+});
 
 export default app;
