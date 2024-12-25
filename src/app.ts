@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import compression from 'compression';
 import compressFilter from './common/utils/compressFilter.util';
 import { config } from './config/app.config';
+import { errorHandler } from './common/utils/errorHandler';
 //import { config } from './config/app.config';
 
 const app = express();
@@ -34,5 +35,7 @@ app.use(
     credentials: true,
   }),
 );
+
+app.use(errorHandler);
 
 export default app;
