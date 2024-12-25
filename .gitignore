@@ -1,1 +1,24 @@
-node_modules/\ndist/\n.env\n*.log
+node_modules/
+
+dist/
+
+.env
+
+.env.dev 
+
+env
+
+/logs/
+
+*.log
+npm-debug.log* 
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db 
+
+Jenkinsfile

@@ -4,7 +4,9 @@
   "description": "api for managing chalets and booking",
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsc --project './tsconfig.build.json' --watch & NODE_ENV=development nodemon --trace-warnings ./dist/index.js",
+    "build": "tsc --project './tsconfig.build.json'",
+    "start": "npm run build && NODE_ENV=production node --trace-warnings ./dist/index.js"
   },
   "repository": {
     "type": "git",
@@ -15,5 +17,18 @@
   "bugs": {
     "url": "https://github.com/jamobrand/chalet-api/issues"
   },
-  "homepage": "https://github.com/jamobrand/chalet-api#readme"
+  "homepage": "https://github.com/jamobrand/chalet-api#readme",
+  "dependencies": {
+    "@types/express": "^5.0.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "typescript": "^5.7.2",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.2"
+  }
 }
