@@ -1,0 +1,97 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enum for user roles
+enum UserRole {
+  SUPER_ADMIN
+  CHALET_OWNER
+  CUSTOMER
+}
+
+enum UserAccountStatus {
+  Active
+  Inactive
+  Pending
+}
+
+model UserAccount {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  firstName          String?
+  lastName           String?
+  email              String            @unique
+  email_verified     DateTime?
+  password           String
+  phoneNumber        String?
+  role               UserRole          @default(CUSTOMER)
+  permissions        String[]          @default([])
+  lastLogin          DateTime?
+  lastPasswordChange DateTime?
+  loginHistory       DateTime[]
+  country            String?
+  auditLogs          AuditLog[]
+  notifications      Notification[]
+  status             UserAccountStatus @default(Inactive)
+  userAgent          String?
+  photo              Photo             @relation(fields: [photoId], references: [id])
+  photoId            String            @db.Uuid
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt()
+  deletedAt          DateTime?
+
+  @@index([email])
+}
+
+model Photo {
+  id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  image      String        @default("https://via.placeholder.com/250")
+  name       String        @default("Default Photo")
+  isGravatar Boolean       @default(false)
+  users      UserAccount[]
+  createdAt  DateTime?     @default(now())
+  updatedAt  DateTime?     @updatedAt()
+  deletedAt  DateTime?
+}
+
+model VerificationToken {
+  id      String   @id @default(cuid())
+  email   String
+  token   String   @unique
+  expires DateTime
+
+  @@unique([email, token])
+}
+
+model AuditLog {
+  id     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user   UserAccount @relation(fields: [userId], references: [id])
+  userId String      @db.Uuid
+}
+
+model Notification {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String
+  body      String
+  type      String
+  referenceId String
+  referenceType String
+  user      UserAccount @relation(fields: [userId], references: [id])
+  userId    String      @db.Uuid
+  isRead    Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt()
+
+  @@index([userId])
+}

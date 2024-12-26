@@ -9,7 +9,10 @@
     "start": "npm run build && NODE_ENV=production node --trace-warnings ./dist/index.js",
     "prepare": "husky",
     "lint": "eslint src/**/*.ts __test__/**/*.test.ts",
-    "lint:fix": "eslint --fix --ext ."
+    "lint:fix": "eslint --fix --ext .",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:prod": "prisma migrate deploy"
   },
   "repository": {
     "type": "git",
@@ -22,9 +25,11 @@
   },
   "homepage": "https://github.com/jamobrand/chalet-api#readme",
   "dependencies": {
+    "@prisma/client": "^5.19.0",
     "@types/express-serve-static-core": "^4.19.5",
     "argon2": "^0.40.3",
     "body-parser": "^1.20.2",
+    "bullmq": "^5.34.5",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
@@ -35,6 +40,7 @@
     "helmet": "^7.1.0",
     "http-errors": "^2.0.0",
     "http-status": "^1.7.4",
+    "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
     "path": "^0.12.7",
@@ -42,7 +48,8 @@
     "uuid": "^10.0.0",
     "winston": "^3.17.0",
     "winston-daily-rotate-file": "^5.0.0",
-    "xss": "^1.0.14"
+    "xss": "^1.0.14",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.11",
@@ -68,6 +75,7 @@
     "lint-staged": "^15.2.9",
     "nodemon": "^3.1.9",
     "prettier": "^3.3.3",
+    "prisma": "^5.19.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.4"
   },

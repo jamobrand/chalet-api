@@ -3,6 +3,12 @@
   "compilerOptions": {
     "esModuleInterop": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.json",
+    "src/**/*.jsx",
+    "src/**/*.tsx",
+    ".env",
+   ],
   "exclude": ["node_modules", "__test__", "dist"]
 }
