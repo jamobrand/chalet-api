@@ -26,29 +26,37 @@ enum UserAccountStatus {
   Pending
 }
 
+// Enum for verification code types
+enum VerificationType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  TWO_FACTOR
+}
+
 model UserAccount {
-  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name               String
   firstName          String?
   lastName           String?
-  email              String            @unique
+  email              String             @unique
   email_verified     DateTime?
   password           String
   phoneNumber        String?
-  role               UserRole          @default(CUSTOMER)
-  permissions        String[]          @default([])
+  role               UserRole           @default(CUSTOMER)
+  permissions        String[]           @default([])
   lastLogin          DateTime?
   lastPasswordChange DateTime?
   loginHistory       DateTime[]
   country            String?
   auditLogs          AuditLog[]
   notifications      Notification[]
-  status             UserAccountStatus @default(Inactive)
+  status             UserAccountStatus  @default(Inactive)
   userAgent          String?
-  photo              Photo             @relation(fields: [photoId], references: [id])
-  photoId            String            @db.Uuid
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt()
+  photo              Photo              @relation(fields: [photoId], references: [id])
+  photoId            String             @db.Uuid
+  verificationCodes  VerificationCode[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt()
   deletedAt          DateTime?
 
   @@index([email])
@@ -65,13 +73,17 @@ model Photo {
   deletedAt  DateTime?
 }
 
-model VerificationToken {
-  id      String   @id @default(cuid())
-  email   String
-  token   String   @unique
-  expires DateTime
+model VerificationCode {
+  id            String           @id @default(cuid())
+  userAccountId String           @db.Uuid
+  userAccount   UserAccount      @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
+  code          String           @unique
+  type          VerificationType
+  createdAt     DateTime         @default(now())
+  expiresAt     DateTime
 
-  @@unique([email, token])
+  @@index([userAccountId])
+  @@index([code])
 }
 
 model AuditLog {
@@ -81,17 +93,17 @@ model AuditLog {
 }
 
 model Notification {
-  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title     String
-  body      String
-  type      String
-  referenceId String
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title         String
+  body          String
+  type          String
+  referenceId   String
   referenceType String
-  user      UserAccount @relation(fields: [userId], references: [id])
-  userId    String      @db.Uuid
-  isRead    Boolean     @default(false)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt()
+  user          UserAccount @relation(fields: [userId], references: [id])
+  userId        String      @db.Uuid
+  isRead        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt()
 
   @@index([userId])
 }
