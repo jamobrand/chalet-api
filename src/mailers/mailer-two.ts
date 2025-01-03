@@ -19,8 +19,9 @@ interface MailError extends Error {
 
 export default async function sendEmailTwo(emailOptions: EmailOptions): Promise<void> {
   const transporter = nodemailer.createTransport({
-    host: 'sandbox.smtp.mailtrap.io',
-    port: 587,
+    // host: 'sandbox.smtp.mailtrap.io',
+    host: process.env['EMAIL_HOST'],
+    port: process.env['EMAIL_PORT'],
     // secure: true,
     auth: {
       user: process.env['EMAIL_USERNAME'],
