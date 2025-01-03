@@ -13,6 +13,14 @@ import httpStatus from 'http-status';
 import { logger } from './common/utils/logger';
 import prismaClient from './config/prisma';
 import authRoutes from './auth/auth.routes';
+import ownerRoutes from './owner/owner.routes';
+import chaletRoutes from './chalet/chalet.routes';
+import reservationRoutes from './reservation/reservation.routes';
+import customerRoutes from './customers/customer.routes';
+import transactionRoutes from './transactions/transaction.routes';
+import addonRoutes from './addons/addon.routes';
+import ruleRoutes from './rules/rule.routes';
+import dashboardRoutes from './dashboard/dashboard.routes';
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -33,10 +41,10 @@ app.use(cookieParser());
 // Compression is used to reduce the size of the response body
 app.use(compression({ filter: compressFilter }));
 
+const corsOrigins = config.APP_ORIGIN.length > 0 ? config.APP_ORIGIN : ['http://localhost'];
 app.use(
   cors({
-    // origin is given a array if we want to have multiple origins later
-    origin: String(config.APP_ORIGIN).split('|'),
+    origin: corsOrigins, // Accepts the array of URLs
     credentials: true,
   }),
 );
@@ -57,6 +65,14 @@ app.get(
 );
 
 app.use(`${BASE_PATH}/auth`, authRoutes);
+app.use(`${BASE_PATH}/owner`, ownerRoutes);
+app.use(`${BASE_PATH}/chalets`, chaletRoutes);
+app.use(`${BASE_PATH}/reservations`, reservationRoutes);
+app.use(`${BASE_PATH}/customers`, customerRoutes);
+app.use(`${BASE_PATH}/transactions`, transactionRoutes);
+app.use(`${BASE_PATH}/addons`, addonRoutes);
+app.use(`${BASE_PATH}/rules`, ruleRoutes);
+app.use(`${BASE_PATH}/dashboard`, dashboardRoutes);
 
 app.use((_req, res) => {
   res.status(httpStatus.NOT_FOUND).json({

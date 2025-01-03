@@ -65,7 +65,7 @@ RUN mkdir -p /usr/src/app/logs && chown -R nodejs:nodejs /usr/src/app
 USER nodejs
 
 # Expose port
-EXPOSE 5050
+EXPOSE 6170
 
 # Start the application
-CMD ["node", "dist/index.js"]
+# CMD ["node", "dist/index.js"]

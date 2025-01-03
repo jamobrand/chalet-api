@@ -1,6 +1,6 @@
 import { RoleEnum } from '../../common/enum/role.enum';
 
-export interface RegisterDto {
+export interface OwnerDto {
   name: string;
   email: string;
   password: string;

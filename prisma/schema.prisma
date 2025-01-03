@@ -26,11 +26,40 @@ enum UserAccountStatus {
   Pending
 }
 
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  FULLY_PAID
+  PARTIALLY_PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  BANK_TRANSFER
+  MOBILE_MONEY
+}
+
 // Enum for verification code types
 enum VerificationType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
   TWO_FACTOR
+}
+
+enum RoomType {
+  Double
+  Twin
 }
 
 model UserAccount {
@@ -40,6 +69,7 @@ model UserAccount {
   lastName           String?
   email              String             @unique
   email_verified     DateTime?
+  isEmailVerified    Boolean            @default(false)
   password           String
   phoneNumber        String?
   role               UserRole           @default(CUSTOMER)
@@ -106,4 +136,199 @@ model Notification {
   updatedAt     DateTime    @updatedAt()
 
   @@index([userId])
+}
+
+// Chalet Model
+model Chalet {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chaletUniqueId String  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String  @unique
+  type           String
+  description    String?
+  basePrice      Decimal @db.Decimal(10, 2)
+  isEnsuite      Boolean @default(false)
+  roomCount      Int
+
+  isUnderMaintenance   Boolean @default(false)
+  reasonForMaintenance String
+
+  locationName String
+  address      String
+  coordinates  Json?
+
+  // Relationships
+  rooms                  Room[]
+  amenities              ChaletAmenity[]
+  ChaletUnavailableDates ChaletUnavailableDates[]
+  bookings               ChaletBooking[]
+  images                 Image[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Room Model
+model Room {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  roomUniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  chaletId String @db.Uuid // Ensure the type matches Chalet.id
+  chalet   Chalet @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+
+  roomType RoomType
+  room     Int
+  capacity Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ChaletUnavailableDates {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  chaletId String @db.Uuid
+  chalet   Chalet @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+
+  date DateTime
+
+  @@unique([chaletId, date])
+}
+
+model Image {
+  id     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  url    String
+  alt    String?
+  key    String?
+  label  String?
+  isMain Boolean @default(false)
+
+  chaletId String @db.Uuid
+  chalet   Chalet @relation(fields: [chaletId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model ChaletAmenity {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique // Add unique constraint
+  description String?
+
+  chalets Chalet[]
+
+  createdAt DateTime @default(now())
+
+  @@index([name]) // Add index for faster lookups
+}
+
+model ChaletBooking {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chaletId         String   @db.Uuid
+  chalet           Chalet   @relation(fields: [chaletId], references: [id], onDelete: Cascade)
+  checkIn          DateTime
+  checkOut         DateTime
+  numberOfAdults   Int
+  numberOfChildren Int
+  totalGuests      Int
+  totalCost        Decimal  @db.Decimal(10, 2)
+  customerId       String   @db.Uuid
+  customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  status       BookingStatus  @default(PENDING)
+  payments     Payment[]
+  bookingDates BookingDate[] // Relation to booking dates 
+  bookingAddOn BookingAddon[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([chaletId])
+  @@index([checkIn, checkOut])
+}
+
+model BookingDate {
+  id        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  date      DateTime?
+  bookingId String        @db.Uuid
+  booking   ChaletBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, date]) // Ensure no duplicate dates for a booking
+  @@index([date]) // Index for faster date lookups
+}
+
+model Payment {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  bookingId String        @db.Uuid
+  booking   ChaletBooking @relation(fields: [bookingId], references: [id])
+
+  amount Decimal       @db.Decimal(10, 2)
+  status PaymentStatus @default(UNPAID)
+  method PaymentMethod @default(CASH)
+
+  transactionId String?
+  receiptNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  firstName      String?
+  lastName       String?
+  fullName       String?
+  addresss       String?
+  email          String?
+  phone          String?
+  nationality    String?
+  passportNumber String?
+
+  bookings ChaletBooking[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AddOn {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name        String
+  description String?
+  price       Decimal @db.Decimal(10, 2)
+
+  bookingAddons BookingAddon[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model BookingAddon {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  bookingId String        @db.Uuid
+  booking   ChaletBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  addOnId String @db.Uuid
+  addOn   AddOn  @relation(fields: [addOnId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bookingId, addOnId])
+}
+
+model ChaletRules {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  uniqueId String @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  title       String
+  description String?
+  icon        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
