@@ -58,8 +58,16 @@ export class OwnerService {
   public async getOwners() {
     const users = await prismaClient.userAccount.findMany({
       where: { role: RoleEnum.CHALET_OWNER },
-      include: {
-        photo: true,
+      select: {
+        photo: {
+          select: {
+            image: true,
+          },
+        },
+        password: false,
+        name: true,
+        id: true,
+        isEmailVerified: true,
       },
       orderBy: { firstName: 'asc' },
     });

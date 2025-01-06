@@ -65,7 +65,7 @@ app.get(
 );
 
 app.use(`${BASE_PATH}/auth`, authRoutes);
-app.use(`${BASE_PATH}/owner`, ownerRoutes);
+app.use(`${BASE_PATH}/owners`, ownerRoutes);
 app.use(`${BASE_PATH}/chalets`, chaletRoutes);
 app.use(`${BASE_PATH}/reservations`, reservationRoutes);
 app.use(`${BASE_PATH}/customers`, customerRoutes);

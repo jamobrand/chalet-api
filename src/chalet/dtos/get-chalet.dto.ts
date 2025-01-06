@@ -1,15 +1,14 @@
 import { ChaletAmenity, Prisma } from '@prisma/client';
-import { Room } from './create-chalet.dto';
 
 interface ImageData {
-    file?: File;
-    url: string;
-    alt: string;
-    key: string;
-    label:string;
-    isMain:boolean;
-  }
-  
+  file?: File;
+  url: string;
+  alt: string;
+  key: string;
+  label: string;
+  isMain: boolean;
+}
+
 export interface AvailabilityCalendar {
   date: Date;
   isAvailable: boolean;
@@ -19,8 +18,14 @@ export interface ChaletWithAvailability {
   id: string;
   chaletUniqueId: string;
   name: string;
-  type: string;
+  propertyType: string;
   description: string | null;
+  totalFloors: number;
+  totalSleeps: number;
+  totalWashrooms: number;
+  weekendPrice: Prisma.Decimal | 0;
+  maxAdults: number;
+  maxChildren: number;
   basePrice: Prisma.Decimal;
   isEnsuite: boolean;
   roomCount: number;
@@ -31,7 +36,17 @@ export interface ChaletWithAvailability {
   coordinates: Prisma.JsonValue | null;
   createdAt: Date;
   updatedAt: Date;
-  rooms: Room[];
+  rooms: {
+    id?: string;
+    room?: number;
+    roomType: string;
+    capacity: number;
+    bunkBedCapacity: number | null;
+    floor: number;
+    numberOfRooms: number;
+    hasBunkBed: boolean;
+    notEnsuite: boolean;
+  }[];
   amenities: ChaletAmenity[];
   images: ImageData[];
   availabilityCalendar: AvailabilityCalendar[];

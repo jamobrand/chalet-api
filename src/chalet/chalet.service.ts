@@ -11,11 +11,12 @@ import { add, endOfMonth, format, startOfToday } from 'date-fns';
 import { ChaletReserveDto } from './dtos/chalet-reserve.dto';
 import sendEmailTwo from '../mailers/mailer-two';
 import { bookingConfirmationTemplate } from '../mailers/templates/booking-confirmation';
+
 //import { SearchChaletInputDto } from './dtos/search-input-chalet';
 
 export class ChaletService {
   public async createChalet(chaletDto: ChaletDataDto) {
-    const { chaletDetails, location, roomDetails, amenities, availability, images,  } = chaletDto;
+    const { chaletDetails, location, roomDetails, amenities, availability, images } = chaletDto;
 
     // Check if a chalet with this name already exists
     const existingChalet = await prismaClient.chalet.findUnique({
@@ -32,15 +33,24 @@ export class ChaletService {
     const newChalet = await prismaClient.chalet.create({
       data: {
         name: chaletDetails.name,
-        type: chaletDetails.type,
+        propertyType: chaletDetails.propertyType,
         description: chaletDetails.description,
         basePrice: chaletDetails.basePrice,
-        roomCount: chaletDetails.roomCount,
-        isEnsuite: chaletDetails.isEnsuite,
+        roomCount: Number(chaletDetails.roomCount),
+        totalWashrooms: Number(chaletDetails.totalWashrooms),
+        totalFloors: Number(chaletDetails.totalFloors),
+        maxAdults: Number(chaletDetails.maxAdults),
+        maxChildren: Number(chaletDetails.maxChildren),
+        totalSleeps: Number(chaletDetails.totalSleeps),
+        isEnsuite: Boolean(chaletDetails.isEnsuite),
+        weekendPrice: chaletDetails.weekendPrice || 0,
+        hasDownstairsLounge: Boolean(chaletDetails.hasDownstairsLounge),
+        hasUpstairsLounge: Boolean(chaletDetails.hasUpstairsLounge),
         locationName: location.name,
         address: location.address,
         coordinates: location.coordinates,
-        reasonForMaintenance: 'None',
+        ownerId: chaletDetails.ownerId,
+        // companyManagementId: chaletDetails?.companyManagementId || '', // Use null if optional
         images: {
           createMany: {
             data: images.map((image) => ({
@@ -198,6 +208,66 @@ export class ChaletService {
     };
   }
 
+  public async searchChaletsByRoom(checkIn: Date, checkOut: Date, rooms: number) {
+    const availableChalets = await prismaClient.chalet.findMany({
+      where: {
+        AND: [
+          {
+            roomCount: {
+              gte: rooms,
+            },
+          },
+          {
+            // Check ChaletUnavailableDates
+            ChaletUnavailableDates: {
+              none: {
+                date: {
+                  gte: checkIn,
+                  lte: checkOut,
+                },
+              },
+            },
+          },
+          {
+            // Check BookingDates
+            bookings: {
+              none: {
+                bookingDates: {
+                  some: {
+                    date: {
+                      gte: checkIn,
+                      lte: checkOut,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          {
+            rooms: {
+              some: {
+                capacity: {
+                  gte: Math.ceil(rooms),
+                },
+              },
+            },
+          },
+        ],
+      },
+
+      include: {
+        rooms: true,
+        ChaletUnavailableDates: true,
+        amenities: true,
+        images: true,
+        _count: true,
+      },
+    });
+    return {
+      chalets: availableChalets,
+    };
+  }
+
   public async getChalet(chaletId: string) {
     const chalet = await prismaClient.chalet.findUnique({
       where: {
@@ -291,7 +361,8 @@ export class ChaletService {
           const isBooked = chalet.bookings.some((booking) =>
             booking.bookingDates.some(
               (bookingDate) =>
-                bookingDate.date && format(bookingDate.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd'),
+                bookingDate.date &&
+                format(bookingDate.date, 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd'),
             ),
           );
 
@@ -331,7 +402,7 @@ export class ChaletService {
       totalCost,
       payment,
       selectedDates,
-      addons
+      addons,
     } = reserveChaletDto;
 
     const customerRecord = await prismaClient.customer.create({
@@ -368,8 +439,8 @@ export class ChaletService {
 
     const transformedAddon = addons.map((addon) => ({
       bookingId: reservation.id,
-      addOnId:addon.addonId,
-    }))
+      addOnId: addon.addonId,
+    }));
 
     await prismaClient.bookingDate.createMany({
       data: transformedDate,
@@ -380,7 +451,6 @@ export class ChaletService {
       data: transformedAddon,
       skipDuplicates: true, // Prevent duplicate entries if already saved
     });
-
 
     if (reservation) {
       // 3. Create Payment Record

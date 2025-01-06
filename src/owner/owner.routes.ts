@@ -5,7 +5,6 @@ import { ownerController } from './owner.module';
 const ownerRoutes = Router();
 
 ownerRoutes.post('/create-owner', ownerController.createOwner);
-ownerRoutes.get('/owners', isAuth, ownerController.getOwners);
-
+ownerRoutes.get('/all-owners', isAuth, ownerController.getOwners);
 
 export default ownerRoutes;

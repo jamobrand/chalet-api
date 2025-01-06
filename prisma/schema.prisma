@@ -26,6 +26,11 @@ enum UserAccountStatus {
   Pending
 }
 
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -50,6 +55,14 @@ enum PaymentMethod {
   MOBILE_MONEY
 }
 
+enum AmenityCategory {
+  KITCHEN // e.g., Gas Cooker, Microwave, Fridge
+  ENTERTAINMENT // e.g., TV, DSTV
+  OUTDOOR // e.g., BBQ Jiko
+  BEDROOM // e.g., Ensuite bathroom
+  GENERAL // e.g., Parking, WiFi
+}
+
 // Enum for verification code types
 enum VerificationType {
   EMAIL_VERIFICATION
@@ -62,32 +75,43 @@ enum RoomType {
   Twin
 }
 
+enum PropertyType {
+  STANDALONE
+  DUPLEX_UPPER
+  DUPLEX_LOWER
+}
+
 model UserAccount {
-  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                 String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name               String
   firstName          String?
   lastName           String?
-  email              String             @unique
+  email              String     @unique
   email_verified     DateTime?
-  isEmailVerified    Boolean            @default(false)
+  isEmailVerified    Boolean    @default(false)
   password           String
   phoneNumber        String?
-  role               UserRole           @default(CUSTOMER)
-  permissions        String[]           @default([])
+  role               UserRole   @default(CUSTOMER)
+  permissions        String[]   @default([])
   lastLogin          DateTime?
   lastPasswordChange DateTime?
   loginHistory       DateTime[]
   country            String?
-  auditLogs          AuditLog[]
-  notifications      Notification[]
-  status             UserAccountStatus  @default(Inactive)
-  userAgent          String?
-  photo              Photo              @relation(fields: [photoId], references: [id])
-  photoId            String             @db.Uuid
-  verificationCodes  VerificationCode[]
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt()
-  deletedAt          DateTime?
+
+  ownedChalets    Chalet[]        @relation("ChaletOwner")
+  wallet          Wallet?
+  createdBookings ChaletBooking[] @relation("BookingCreator")
+
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  status            UserAccountStatus  @default(Inactive)
+  userAgent         String?
+  photo             Photo              @relation(fields: [photoId], references: [id])
+  photoId           String             @db.Uuid
+  verificationCodes VerificationCode[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt()
+  deletedAt         DateTime?
 
   @@index([email])
 }
@@ -138,23 +162,87 @@ model Notification {
   @@index([userId])
 }
 
+model CompanyManagement {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  commission Decimal  @default(20.00) @db.Decimal(10, 2) // Default 20%
+  // chalets    Chalet[]
+  wallet     Wallet?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// Add Wallet model for payment distribution
+model Wallet {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  balance             Decimal             @default(0) @db.Decimal(10, 2)
+  userAccountId       String?             @unique @db.Uuid
+  userAccount         UserAccount?        @relation(fields: [userAccountId], references: [id])
+  companyManagementId String?             @unique @db.Uuid
+  companyManagement   CompanyManagement?  @relation(fields: [companyManagementId], references: [id])
+  transactions        WalletTransaction[]
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+}
+
+model WalletTransaction {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  walletId  String          @db.Uuid
+  wallet    Wallet          @relation(fields: [walletId], references: [id])
+  amount    Decimal         @db.Decimal(10, 2)
+  type      TransactionType
+  paymentId String?         @db.Uuid
+  payment   Payment?        @relation(fields: [paymentId], references: [id])
+  createdAt DateTime        @default(now())
+}
+
+// Add SeasonalPrice model
+model SeasonalPrice {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chaletId  String   @db.Uuid
+  chalet    Chalet   @relation(fields: [chaletId], references: [id])
+  startDate DateTime
+  endDate   DateTime
+  price     Decimal  @db.Decimal(10, 2)
+}
+
 // Chalet Model
 model Chalet {
-  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chaletUniqueId String  @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String  @unique
-  type           String
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chaletUniqueId String       @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String       @unique
+  propertyType   PropertyType @default(STANDALONE)
   description    String?
-  basePrice      Decimal @db.Decimal(10, 2)
-  isEnsuite      Boolean @default(false)
-  roomCount      Int
+
+  basePrice      Decimal         @db.Decimal(10, 2)
+  weekendPrice   Decimal?        @db.Decimal(10, 2)
+  seasonalPrices SeasonalPrice[]
+
+  // Room Configuration
+  roomCount          Int       @default(0)  // Keep this for quick access
+  isEnsuite          Boolean   @default(false)
+  totalWashrooms     Int       @default(0) // Total number of washrooms in the property
+
+  // Property Details
+  totalFloors         Int     @default(1)
+  hasUpstairsLounge   Boolean @default(false)
+  hasDownstairsLounge Boolean @default(false)
+  maxAdults           Int
+  maxChildren         Int
+  totalSleeps         Int
 
   isUnderMaintenance   Boolean @default(false)
-  reasonForMaintenance String
+  reasonForMaintenance String?
 
   locationName String
   address      String
   coordinates  Json?
+
+  // Relationships
+  ownerId             String            @db.Uuid
+  owner               UserAccount       @relation("ChaletOwner", fields: [ownerId], references: [id])
+  // companyManagementId String?            @db.Uuid
+  // companyManagement   CompanyManagement? @relation(fields: [companyManagementId], references: [id])
 
   // Relationships
   rooms                  Room[]
@@ -175,9 +263,13 @@ model Room {
   chaletId String @db.Uuid // Ensure the type matches Chalet.id
   chalet   Chalet @relation(fields: [chaletId], references: [id], onDelete: Cascade)
 
-  roomType RoomType
-  room     Int
-  capacity Int
+  roomType        RoomType
+  floor           Int      @default(1)
+  notEnsuite      Boolean  @default(false) // Changed to notEnsuite to flag exceptions
+  hasBunkBed      Boolean  @default(false)
+  bunkBedCapacity Int? // For rooms with bunk beds
+  capacity        Int // Regular bed capacity
+  numberOfRooms  Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -209,15 +301,18 @@ model Image {
 }
 
 model ChaletAmenity {
-  id          Int     @id @default(autoincrement())
-  name        String  @unique // Add unique constraint
+  id          Int             @id @default(autoincrement())
+  name        String          @unique // Add unique constraint
   description String?
+  category    AmenityCategory @default(GENERAL)
+  icon        String? // For UI display
 
   chalets Chalet[]
 
   createdAt DateTime @default(now())
 
-  @@index([name]) // Add index for faster lookups
+  @@index([name])
+  @@index([category])
 }
 
 model ChaletBooking {
@@ -232,6 +327,9 @@ model ChaletBooking {
   totalCost        Decimal  @db.Decimal(10, 2)
   customerId       String   @db.Uuid
   customer         Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdById String?      @db.Uuid
+  createdBy   UserAccount? @relation("BookingCreator", fields: [createdById], references: [id])
 
   status       BookingStatus  @default(PENDING)
   payments     Payment[]
@@ -268,8 +366,9 @@ model Payment {
   transactionId String?
   receiptNumber String?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  walletTransactions WalletTransaction[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
 }
 
 model Customer {

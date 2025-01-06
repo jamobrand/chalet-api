@@ -1,12 +1,22 @@
-import { RoomTypeEnum } from '../../common/enum/role.enum';
+import { PropertyTypeEnum, RoomTypeEnum } from '../../common/enum/role.enum';
 
 interface ChaletData {
   name: string;
-  type: string;
+  propertyType: PropertyTypeEnum;
   description: string;
   basePrice: number;
+  weekendPrice?: number;
+  totalWashrooms: number;
+  totalFloors: number;
+  hasUpstairsLounge: boolean;
+  hasDownstairsLounge: boolean;
+  maxAdults: number;
+  maxChildren: number;
+  totalSleeps: number;
   roomCount: number;
   isEnsuite: boolean;
+  ownerId: string;
+  companyManagementId?: string;
 }
 
 interface Location {
@@ -21,7 +31,11 @@ interface Location {
 export interface Room {
   roomType: RoomTypeEnum;
   room: number;
+  floor: number;
+  notEnsuite: boolean;
+  hasBunked: boolean;
   capacity: number;
+  bunkBedCapacity: number | null;
 }
 
 export interface Amenities {
@@ -38,8 +52,8 @@ interface ImageData {
   url: string;
   alt: string;
   key: string;
-  label:string;
-  isMain:boolean;
+  label: string;
+  isMain: boolean;
 }
 
 export interface ChaletDataDto {

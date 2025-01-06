@@ -43,6 +43,26 @@ export class ChaletController {
     });
   });
 
+  public searchChaletsByRoom = asyncHandler(
+    async (req: Request, res: Response): Promise<Response> => {
+      const { checkIn, checkOut, rooms } = req.body;
+
+      const checkInDate = new Date(checkIn);
+      const checkOutDate = new Date(checkOut);
+
+      const dataChalets = await this.chaletService.searchChaletsByRoom(
+        checkInDate,
+        checkOutDate,
+        rooms,
+      );
+
+      return res.status(httpStatus.OK).json({
+        message: 'Retrieved available chalets successfully',
+        chalets: dataChalets.chalets,
+      });
+    },
+  );
+
   public getChalet = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
     const chaletId = z.string().parse(req.params['id']);
     const dataChalet = await this.chaletService.getChalet(chaletId);

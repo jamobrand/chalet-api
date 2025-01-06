@@ -12,3 +12,11 @@ const enum RoomTypeEnum {
 }
 
 export { RoomTypeEnum };
+
+const enum PropertyTypeEnum {
+  STANDALONE = 'STANDALONE',
+  DUPLEX_UPPER = 'DUPLEX_UPPER',
+  DUPLEX_LOWER = 'DUPLEX_LOWER',
+}
+
+export { PropertyTypeEnum };

@@ -6,6 +6,7 @@ const chaletRoutes = Router();
 chaletRoutes.post('/create', chaletController.createChalet);
 chaletRoutes.get('/all-chalets', chaletController.getChalets);
 chaletRoutes.post('/search', chaletController.searchChalets);
+chaletRoutes.post('/search/room', chaletController.searchChaletsByRoom);
 chaletRoutes.get('/:id', chaletController.getChalet);
 chaletRoutes.get('/home/chalets', chaletController.getChaletsHome);
 chaletRoutes.post('/booking/reserve-chalet', chaletController.reserveChalet);
