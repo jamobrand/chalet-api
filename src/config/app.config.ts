@@ -14,10 +14,15 @@ const appConfig = () => ({
   MAILER_SENDER: getEnv('MAILER_SENDER'),
   RESEND_API_KEY: getEnv('RESEND_API_KEY'),
   JWT: {
-    SECRET: getEnv("JWT_SECRET"),
-    EXPIRES_IN: getEnv("JWT_SECRET_EXPIRE"),
-    COOKIE_NAME: getEnv("COOKIE_NAME"),
+    SECRET: getEnv('JWT_SECRET'),
+    EXPIRES_IN: getEnv('JWT_SECRET_EXPIRE'),
+    COOKIE_NAME: getEnv('COOKIE_NAME'),
   },
+  AWS_S3_BUCKET: getEnv('AWS_S3_BUCKET'),
+  AWS_REGION: getEnv('AWS_REGION'),
+  AWS_ACCESS_KEY_ID: getEnv('AWS_ACCESS_KEY_ID'),
+  AWS_SECRET_ACCESS_KEY: getEnv('AWS_SECRET_ACCESS_KEY'),
+  CLOUDFRONT_DOMAIN: getEnv('CLOUDFRONT_DOMAIN'),
 });
 
 export const config = appConfig();

@@ -1,14 +1,12 @@
 import { logger } from '../common/utils/logger';
 import { BadRequestException, InternalServerException } from '../common/utils/catch-errors';
 import prismaClient from '../config/prisma';
-import { CreateAddonDto } from './dtos/create-addon.dto';
+import { CreateAddonDto, UpdateAddonDto } from './dtos/create-addon.dto';
 import { ErrorCode } from '../common/enum/error-code.enum';
 
 export class AddonsService {
-  
   public async createAddon(createAddonDto: CreateAddonDto) {
-    const { name,price, description } = createAddonDto;
-
+    const { name, price, description } = createAddonDto;
 
     const newAddon = await prismaClient.addOn.create({
       data: {
@@ -31,8 +29,8 @@ export class AddonsService {
   public async getAddons() {
     const addons = await prismaClient.addOn.findMany({
       include: {
-        bookingAddons:true,
-        _count:true
+        bookingAddons: true,
+        _count: true,
       },
     });
 
@@ -56,6 +54,28 @@ export class AddonsService {
     }
     return {
       addon: addon,
+    };
+  }
+
+  public async updateAddon(addonId: string, updateAddonDto: UpdateAddonDto) {
+    const { name, price, description } = updateAddonDto;
+
+    const updatedAddon = await prismaClient.addOn.update({
+      where: { id: addonId },
+      data: {
+        name,
+        description,
+        price,
+      },
+    });
+
+    if (!updatedAddon) {
+      logger.warn(`Addon update failed: ${name}`);
+      throw new InternalServerException('Addon update Failed', ErrorCode.INTERNAL_SERVER_ERROR);
+    }
+
+    return {
+      addon: updatedAddon,
     };
   }
 }

@@ -34,8 +34,18 @@ export class AddonController {
     const dataAddon = await this.addonsService.getAddon(addonId);
 
     return res.status(httpStatus.OK).json({
-      message: 'Retrieved transaction successfully',
+      message: 'Retrieved addon successfully',
       addon: dataAddon.addon,
+    });
+  });
+
+  public updateAddon = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
+    const addonId = z.string().parse(req.params['id']);
+    const updatedAddon = await this.addonsService.updateAddon(addonId, req.body);
+
+    return res.status(httpStatus.OK).json({
+      message: 'Updated Addon successfully',
+      addon: updatedAddon.addon,
     });
   });
 }

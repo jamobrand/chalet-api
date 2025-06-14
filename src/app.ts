@@ -21,6 +21,7 @@ import transactionRoutes from './transactions/transaction.routes';
 import addonRoutes from './addons/addon.routes';
 import ruleRoutes from './rules/rule.routes';
 import dashboardRoutes from './dashboard/dashboard.routes';
+import imageUploadRoutes from './s3-image-uploader/image-upload.routes';
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -67,6 +68,7 @@ app.get(
 app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/owners`, ownerRoutes);
 app.use(`${BASE_PATH}/chalets`, chaletRoutes);
+app.use(`${BASE_PATH}/images`, imageUploadRoutes);
 app.use(`${BASE_PATH}/reservations`, reservationRoutes);
 app.use(`${BASE_PATH}/customers`, customerRoutes);
 app.use(`${BASE_PATH}/transactions`, transactionRoutes);
