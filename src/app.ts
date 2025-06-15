@@ -30,10 +30,10 @@ const BASE_PATH = config.BASE_PATH;
 app.use(helmet());
 
 // parse json request body
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // parse urlencoded request body
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 app.use(xssMiddleware());
 
