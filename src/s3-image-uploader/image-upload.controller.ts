@@ -12,7 +12,7 @@ const upload = multer({
   limits: {
     fileSize: 25 * 1024 * 1024, // 25MB per file (larger than your 20MB images)
     files: 15, // Maximum 15 files (more than your 10 limit)
-    fieldSize: 200 * 1024 * 1024, // 200MB total field data
+    fieldSize: 250 * 1024 * 1024, // 200MB total field data
     fieldNameSize: 1024, // Field name size
     fields: 100, // Maximum number of fields
     parts: 1000, // Maximum number of parts
@@ -21,11 +21,19 @@ const upload = multer({
     logger.info(
       `Processing file: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`,
     );
-    // Check file type
+    // Enhanced file type validation
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
+    // const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+
+    // const isValidMimeType = allowedTypes.includes(file.mimetype);
+    // const hasValidExtension = allowedExtensions.some((ext) =>
+    //   file.originalname.toLowerCase().endsWith(ext),
+    // );
+
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
+      logger.warn(`Rejected file: ${file.originalname} - Invalid type: ${file.mimetype}`);
       cb(new BadRequestException(`File type ${file.mimetype} is not allowed`));
     }
   },
@@ -43,12 +51,21 @@ export class ImageUploadController {
    */
   public getUploadMiddleware() {
     return (req: Request, res: Response, next: NextFunction) => {
+      const startTime = Date.now();
       const uploadHandler = upload.array('images', 15);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       uploadHandler(req, res, (err: any) => {
+        const uploadTime = Date.now() - startTime;
+        logger.info(`Multer processing completed in ${uploadTime}ms`);
+
         if (err) {
-          console.error('Multer error:', err);
+          logger.error('Multer error:', {
+            error: err.message,
+            code: err.code,
+            field: err.field,
+            uploadTime,
+          });
 
           if (err instanceof multer.MulterError) {
             switch (err.code) {
@@ -92,6 +109,15 @@ export class ImageUploadController {
           });
         }
 
+        // Log successful multer processing
+        const files = req.files as Express.Multer.File[];
+        if (files && files.length > 0) {
+          const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+          logger.info(
+            `Multer successfully processed ${files.length} files, total size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+          );
+        }
+
         next();
       });
     };
@@ -102,11 +128,13 @@ export class ImageUploadController {
    * POST /api/images/upload
    * Content-Type: multipart/form-data
    */
+
   public processAndUploadImages = asyncHandler(
     async (req: Request, res: Response): Promise<Response> => {
+      const processingStartTime = Date.now();
       const files = req.files as Express.Multer.File[];
 
-      logger.info(`Received ${files?.length || 0} files for processing`);
+      logger.info(`=== Starting image processing for ${files?.length || 0} files ===`);
 
       if (!files || files.length === 0) {
         throw new BadRequestException('No images provided');
@@ -116,55 +144,106 @@ export class ImageUploadController {
         throw new BadRequestException('Maximum 15 images allowed per upload');
       }
 
-      // Log file information
-      files.forEach((file, index) => {
-        logger.info(`File ${index + 1}:`, {
+      // Validate files and log detailed information
+      let totalSize = 0;
+      files.map((file, index) => {
+        const fileSize = file.size || file.buffer?.length || 0;
+        totalSize += fileSize;
+
+        const details = {
+          index: index + 1,
           name: file.originalname,
-          size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+          size: fileSize,
+          sizeFormatted: `${(fileSize / 1024 / 1024).toFixed(2)}MB`,
           type: file.mimetype,
-        });
+          bufferLength: file.buffer?.length || 0,
+        };
+
+        logger.info(`File ${index + 1} details:`, details);
+        return details;
       });
 
-      // Calculate total upload size
-      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
       logger.info(`Total upload size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
-      // Prepare requests for processing
-      const processRequests: ProcessedImageUploadRequest[] = files.map((file) => ({
-        fileName: file.originalname,
-        fileBuffer: file.buffer,
-        fileType: file.mimetype,
-      }));
+      // Check for corrupted or empty files
+      const invalidFiles = files.filter((file) => !file.buffer || file.buffer.length === 0);
+      if (invalidFiles.length > 0) {
+        logger.error(
+          `Found ${invalidFiles.length} invalid/empty files:`,
+          invalidFiles.map((f) => f.originalname),
+        );
+        throw new BadRequestException(
+          `${invalidFiles.length} files appear to be corrupted or empty`,
+        );
+      }
 
-      const results = await this.s3Service.processAndUploadMultipleImages(processRequests);
+      try {
+        // Prepare requests for processing
+        const processRequests: ProcessedImageUploadRequest[] = files.map((file) => ({
+          fileName: file.originalname,
+          fileBuffer: file.buffer,
+          fileType: file.mimetype,
+        }));
 
-      // Calculate total compression stats
-      const totalOriginalSize = results.reduce((sum, result) => sum + result.originalSize, 0);
-      const totalCompressedSize = results.reduce((sum, result) => sum + result.compressedSize, 0);
-      const overallCompressionRatio = ((1 - totalCompressedSize / totalOriginalSize) * 100).toFixed(
-        2,
-      );
+        logger.info('Starting S3 service processing...');
+        const serviceStartTime = Date.now();
 
-      logger.info('Upload completed successfully:', {
-        totalImages: results.length,
-        totalOriginalSize: `${(totalOriginalSize / 1024 / 1024).toFixed(2)}MB`,
-        totalCompressedSize: `${(totalCompressedSize / 1024 / 1024).toFixed(2)}MB`,
-        overallCompressionRatio: `${overallCompressionRatio}%`,
-      });
+        const results = await this.s3Service.processAndUploadMultipleImages(processRequests);
 
-      return res.status(httpStatus.OK).json({
-        message: 'Images processed and uploaded successfully',
-        data: {
-          images: results,
-          stats: {
-            totalImages: results.length,
-            totalOriginalSize: `${(totalOriginalSize / 1024 / 1024).toFixed(2)}MB`,
-            totalCompressedSize: `${(totalCompressedSize / 1024 / 1024).toFixed(2)}MB`,
-            overallCompressionRatio: `${overallCompressionRatio}%`,
-            spaceSaved: `${((totalOriginalSize - totalCompressedSize) / 1024 / 1024).toFixed(2)}MB`,
+        const serviceTime = Date.now() - serviceStartTime;
+        const totalTime = Date.now() - processingStartTime;
+
+        // Calculate compression stats
+        const totalOriginalSize = results.reduce((sum, result) => sum + result.originalSize, 0);
+        const totalCompressedSize = results.reduce((sum, result) => sum + result.compressedSize, 0);
+        const overallCompressionRatio =
+          totalOriginalSize > 0
+            ? ((1 - totalCompressedSize / totalOriginalSize) * 100).toFixed(2)
+            : '0';
+
+        const stats = {
+          totalImages: results.length,
+          totalOriginalSize: `${(totalOriginalSize / 1024 / 1024).toFixed(2)}MB`,
+          totalCompressedSize: `${(totalCompressedSize / 1024 / 1024).toFixed(2)}MB`,
+          overallCompressionRatio: `${overallCompressionRatio}%`,
+          spaceSaved: `${((totalOriginalSize - totalCompressedSize) / 1024 / 1024).toFixed(2)}MB`,
+          processingTime: {
+            total: `${totalTime}ms`,
+            service: `${serviceTime}ms`,
+            average: `${(serviceTime / results.length).toFixed(0)}ms per image`,
           },
-        },
-      });
+        };
+
+        logger.info('=== Upload completed successfully ===', {
+          ...stats,
+          performance: {
+            totalProcessingTime: totalTime,
+            serviceProcessingTime: serviceTime,
+            averagePerImage: serviceTime / results.length,
+            imagesPerSecond: (results.length / (serviceTime / 1000)).toFixed(2),
+          },
+        });
+
+        return res.status(httpStatus.OK).json({
+          message: 'Images processed and uploaded successfully',
+          data: {
+            images: results,
+            stats,
+          },
+        });
+      } catch (error) {
+        const totalTime = Date.now() - processingStartTime;
+        logger.error('=== Image processing failed ===', {
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          processingTime: totalTime,
+          fileCount: files.length,
+          totalSize: `${(totalSize / 1024 / 1024).toFixed(2)}MB`,
+        });
+
+        // Re-throw the error to be handled by asyncHandler
+        throw error;
+      }
     },
   );
 
