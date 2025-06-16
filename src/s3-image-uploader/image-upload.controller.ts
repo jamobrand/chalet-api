@@ -1,18 +1,26 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import multer from 'multer';
 import { BadRequestException } from '../common/utils/catch-errors';
 import { asyncHandler } from '../common/utils/asyncHandler';
 import { ImageUploadRequest, ProcessedImageUploadRequest, S3Service } from './s3.service';
+import { logger } from '../common/utils/logger';
 
 // Configure multer for memory storage (we'll process images in memory)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB limit for original uploads
-    files: 10, // Maximum 10 files
+    fileSize: 25 * 1024 * 1024, // 25MB per file (larger than your 20MB images)
+    files: 15, // Maximum 15 files (more than your 10 limit)
+    fieldSize: 200 * 1024 * 1024, // 200MB total field data
+    fieldNameSize: 1024, // Field name size
+    fields: 100, // Maximum number of fields
+    parts: 1000, // Maximum number of parts
   },
   fileFilter: (_req, file, cb) => {
+    logger.info(
+      `Processing file: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`,
+    );
     // Check file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (allowedTypes.includes(file.mimetype)) {
@@ -31,10 +39,62 @@ export class ImageUploadController {
   }
 
   /**
-   * Get multer middleware for handling multipart uploads
+   * Get multer middleware for handling multipart uploads with enhanced error handling
    */
   public getUploadMiddleware() {
-    return upload.array('images', 10); // Allow up to 10 images
+    return (req: Request, res: Response, next: NextFunction) => {
+      const uploadHandler = upload.array('images', 15);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      uploadHandler(req, res, (err: any) => {
+        if (err) {
+          console.error('Multer error:', err);
+
+          if (err instanceof multer.MulterError) {
+            switch (err.code) {
+              case 'LIMIT_FILE_SIZE':
+                return res.status(413).json({
+                  error: 'File too large',
+                  message: 'File size exceeds 25MB limit',
+                  code: 'FILE_TOO_LARGE',
+                });
+              case 'LIMIT_FILE_COUNT':
+                return res.status(413).json({
+                  error: 'Too many files',
+                  message: 'Maximum 15 files allowed',
+                  code: 'TOO_MANY_FILES',
+                });
+              case 'LIMIT_FIELD_VALUE':
+                return res.status(413).json({
+                  error: 'Field value too large',
+                  message: 'Total upload size exceeds 200MB limit',
+                  code: 'FIELD_TOO_LARGE',
+                });
+              case 'LIMIT_UNEXPECTED_FILE':
+                return res.status(400).json({
+                  error: 'Unexpected field',
+                  message: 'Unexpected file field',
+                  code: 'UNEXPECTED_FIELD',
+                });
+              default:
+                return res.status(400).json({
+                  error: 'Upload error',
+                  message: err.message,
+                  code: 'UPLOAD_ERROR',
+                });
+            }
+          }
+
+          return res.status(400).json({
+            error: 'Upload failed',
+            message: err.message || 'Unknown upload error',
+            code: 'GENERAL_ERROR',
+          });
+        }
+
+        next();
+      });
+    };
   }
 
   /**
@@ -46,13 +106,28 @@ export class ImageUploadController {
     async (req: Request, res: Response): Promise<Response> => {
       const files = req.files as Express.Multer.File[];
 
+      logger.info(`Received ${files?.length || 0} files for processing`);
+
       if (!files || files.length === 0) {
         throw new BadRequestException('No images provided');
       }
 
-      if (files.length > 10) {
-        throw new BadRequestException('Maximum 10 images allowed per upload');
+      if (files.length > 15) {
+        throw new BadRequestException('Maximum 15 images allowed per upload');
       }
+
+      // Log file information
+      files.forEach((file, index) => {
+        logger.info(`File ${index + 1}:`, {
+          name: file.originalname,
+          size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+          type: file.mimetype,
+        });
+      });
+
+      // Calculate total upload size
+      const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+      logger.info(`Total upload size: ${(totalSize / 1024 / 1024).toFixed(2)}MB`);
 
       // Prepare requests for processing
       const processRequests: ProcessedImageUploadRequest[] = files.map((file) => ({
@@ -69,6 +144,13 @@ export class ImageUploadController {
       const overallCompressionRatio = ((1 - totalCompressedSize / totalOriginalSize) * 100).toFixed(
         2,
       );
+
+      logger.info('Upload completed successfully:', {
+        totalImages: results.length,
+        totalOriginalSize: `${(totalOriginalSize / 1024 / 1024).toFixed(2)}MB`,
+        totalCompressedSize: `${(totalCompressedSize / 1024 / 1024).toFixed(2)}MB`,
+        overallCompressionRatio: `${overallCompressionRatio}%`,
+      });
 
       return res.status(httpStatus.OK).json({
         message: 'Images processed and uploaded successfully',
@@ -98,6 +180,12 @@ export class ImageUploadController {
       if (!file) {
         throw new BadRequestException('No image provided');
       }
+
+      logger.info('Processing single file:', {
+        name: file.originalname,
+        size: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        type: file.mimetype,
+      });
 
       const processRequest: ProcessedImageUploadRequest = {
         fileName: file.originalname,
@@ -239,7 +327,49 @@ export class ImageUploadController {
 }
 
 // Middleware function to handle single image upload
-export const uploadSingle = upload.single('image');
+export const uploadSingle = (req: Request, res: Response, next: NextFunction) => {
+  const uploadHandler = upload.single('image');
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  uploadHandler(req, res, (err: any) => {
+    if (err) {
+      console.error('Single upload error:', err);
+      if (err instanceof multer.MulterError) {
+        return res.status(413).json({
+          error: 'Upload error',
+          message: err.message,
+          code: err.code,
+        });
+      }
+      return res.status(400).json({
+        error: 'Upload failed',
+        message: err.message,
+      });
+    }
+    next();
+  });
+};
 
 // Middleware function to handle multiple image uploads
-export const uploadMultiple = upload.array('images', 10);
+export const uploadMultiple = (req: Request, res: Response, next: NextFunction) => {
+  const uploadHandler = upload.array('images', 15);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  uploadHandler(req, res, (err: any) => {
+    if (err) {
+      console.error('Multiple upload error:', err);
+      if (err instanceof multer.MulterError) {
+        return res.status(413).json({
+          error: 'Upload error',
+          message: err.message,
+          code: err.code,
+        });
+      }
+      return res.status(400).json({
+        error: 'Upload failed',
+        message: err.message,
+      });
+    }
+    next();
+  });
+};
