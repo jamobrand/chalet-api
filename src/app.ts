@@ -71,15 +71,7 @@ app.use(
   }),
 );
 
-// Increased limits for large file uploads
-// Set different limits for different routes
-app.use(
-  '/api/v1/images',
-  express.raw({
-    type: 'multipart/form-data',
-    limit: '250mb',
-  }),
-);
+app.use(`${BASE_PATH}/images`, imageUploadRoutes);
 
 // Higher limits for JSON and URL encoded data
 app.use(
@@ -125,7 +117,7 @@ app.get(
 app.use(`${BASE_PATH}/auth`, authRoutes);
 app.use(`${BASE_PATH}/owners`, ownerRoutes);
 app.use(`${BASE_PATH}/chalets`, chaletRoutes);
-app.use(`${BASE_PATH}/images`, imageUploadRoutes);
+
 app.use(`${BASE_PATH}/reservations`, reservationRoutes);
 app.use(`${BASE_PATH}/customers`, customerRoutes);
 app.use(`${BASE_PATH}/transactions`, transactionRoutes);

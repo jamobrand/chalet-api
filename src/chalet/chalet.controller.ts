@@ -29,6 +29,15 @@ export class ChaletController {
     });
   });
 
+  public deleteChalet = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
+    const chaletId = req.params['chaletId'];
+    const { message } = await this.chaletService.deleteChalet(chaletId as string);
+
+    return res.status(httpStatus.OK).json({
+      message: message,
+    });
+  });
+
   public searchChalets = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
     const { checkIn, checkOut, rooms } = req.body;
 

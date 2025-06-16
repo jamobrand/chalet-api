@@ -142,6 +142,19 @@ export class ChaletService {
     };
   }
 
+  public async deleteChalet(chaletId: string) {
+    await prismaClient.$transaction([
+      // prismaClient.image.deleteMany({
+      //   where: { chaletId },
+      // }),
+      prismaClient.chalet.delete({
+        where: { id: chaletId },
+      }),
+    ]);
+
+    return { message: 'Chalet deleted successfully' };
+  }
+
   public async searchChalets(
     checkIn: Date,
     checkOut: Date,

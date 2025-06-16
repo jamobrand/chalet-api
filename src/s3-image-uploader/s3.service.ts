@@ -301,8 +301,8 @@ export class S3Service {
       throw new BadRequestException('At least one image is required');
     }
 
-    if (requests.length > 10) {
-      throw new BadRequestException('Maximum 10 images allowed per upload');
+    if (requests.length > 15) {
+      throw new BadRequestException('Maximum 15 images allowed per upload');
     }
 
     const results: ProcessedImageUploadResponse[] = [];
@@ -386,8 +386,8 @@ export class S3Service {
       throw new BadRequestException('At least one image is required');
     }
 
-    if (images.length > 8) {
-      throw new BadRequestException('Maximum 8 images allowed per upload');
+    if (images.length > 15) {
+      throw new BadRequestException('Maximum 15 images allowed per upload');
     }
 
     const uploadUrls: PresignedUrlResponse[] = [];
