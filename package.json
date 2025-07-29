@@ -5,10 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsc --project './tsconfig.build.json' --watch & NODE_ENV=development nodemon --trace-warnings ./dist/index.js",
-    "dev:worker": "tsc --project './tsconfig.build.json' --watch & NODE_ENV=development nodemon --trace-warnings ./dist/worker.js",
     "build": "tsc --project './tsconfig.build.json'",
     "start": "npm run build && NODE_ENV=production node --trace-warnings ./dist/index.js",
-    "start:worker": "NODE_ENV=production node --trace-warnings ./dist/worker.js",
     "prepare": "husky",
     "lint": "eslint src/**/*.ts __test__/**/*.test.ts",
     "lint:fix": "eslint --fix --ext .",
