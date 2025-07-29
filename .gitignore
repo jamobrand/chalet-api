@@ -21,4 +21,6 @@ npm-debug.log*
 .DS_Store
 Thumbs.db 
 
-Jenkinsfile
+Jenkinsfile 
+
+tests3.ts
