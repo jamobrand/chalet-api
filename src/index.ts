@@ -5,6 +5,12 @@ import { config } from './config/app.config';
 import { logger } from './common/utils/logger';
 import prismaClient from './config/prisma';
 
+/**
+ * Gracefully shutdown the application by closing database connections and other resources.
+ * This function is called when the application receives a termination signal (SIGTERM or SIGINT).
+ * It ensures that all ongoing requests are completed before shutting down.
+ */
+
 async function shutdownGracefully() {
   try {
     logger.info('Initiating graceful shutdown...');
@@ -19,10 +25,19 @@ async function shutdownGracefully() {
   }
 }
 
+/**
+ * Starts the server and listens on the specified port.
+ * It also sets up signal handlers for graceful shutdown on termination signals.
+ * The server will close gracefully, allowing ongoing requests to complete before shutting down.
+ */
 const server = app.listen(Number(config.PORT), () => {
   logger.log('info', `Server is running on Port: ${config.PORT}`);
 });
 
+/**
+ *
+ * @param signal - The signal that triggered the shutdown (e.g., SIGTERM, SIGINT).
+ */
 async function handleShutdown(signal: string) {
   logger.info(`${signal} signal received`);
 
