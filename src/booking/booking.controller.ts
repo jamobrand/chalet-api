@@ -86,7 +86,7 @@ export class BookingController {
     const { ref: reservationReference } = req.query;
 
     if (!reservationReference || typeof reservationReference !== 'string') {
-      res.redirect(`${config.FRONTEND_URL}/booking/error?message=Invalid reservation reference`);
+      res.redirect(`${config.CHALET_USER_URL}/booking/error?message=Invalid reservation reference`);
       return;
     }
 
@@ -97,11 +97,11 @@ export class BookingController {
 
       // Redirect to success page with booking details
       res.redirect(
-        `${config.FRONTEND_URL}/booking/success?bookingId=${result.booking?.id}&status=confirmed`,
+        `${config.CHALET_USER_URL}/booking/success?bookingId=${result.booking?.id}&status=confirmed`,
       );
     } catch (error) {
       console.error('Payment success handling error:', error);
-      res.redirect(`${config.FRONTEND_URL}/booking/error?message=Payment verification failed`);
+      res.redirect(`${config.CHALET_USER_URL}/booking/error?message=Payment verification failed`);
     }
   });
 
@@ -120,7 +120,7 @@ export class BookingController {
       }
     }
 
-    res.redirect(`${config.FRONTEND_URL}/booking/cancelled?message=Payment was cancelled`);
+    res.redirect(`${config.CHALET_USER_URL}/booking/cancelled?message=Payment was cancelled`);
   });
 
   /**
@@ -140,7 +140,7 @@ export class BookingController {
 
     const errorMessage = error || 'Payment failed';
     res.redirect(
-      `${config.FRONTEND_URL}/booking/error?message=${encodeURIComponent(errorMessage as string)}`,
+      `${config.CHALET_USER_URL}/booking/error?message=${encodeURIComponent(errorMessage as string)}`,
     );
   });
 

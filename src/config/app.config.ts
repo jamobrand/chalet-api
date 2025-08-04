@@ -16,6 +16,7 @@ const appConfig = () => ({
   DPO_COMPANY_TOKEN: getEnv('DPO_COMPANY_TOKEN'),
   DPO_BASE_URL: getEnv('DPO_BASE_URL'),
   DPO_PAYMENT_URL: getEnv('DPO_PAYMENT_URL'),
+  CHALET_USER_URL: getEnv('CHALET_USER_URL'),
   JWT: {
     SECRET: getEnv('JWT_SECRET'),
     EXPIRES_IN: getEnv('JWT_SECRET_EXPIRE'),
