@@ -31,7 +31,6 @@ export class BookingController {
           validatedData.services ||
           generateBookingServices(
             validatedData.checkIn,
-            validatedData.checkOut,
             'Chalet Booking', // You can get chalet name from database if needed
           ),
       };

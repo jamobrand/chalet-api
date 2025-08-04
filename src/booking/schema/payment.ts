@@ -55,7 +55,7 @@ export const verifyPaymentSchema = z.object({
 });
 
 // Helper function to generate services from booking data
-export const generateBookingServices = (checkIn: string, chaletName: string = 'cHALET Booking') => {
+export const generateBookingServices = (checkIn: string, chaletName: string = 'Chalet Booking') => {
   const checkInDate = new Date(checkIn);
 
   const formatServiceDate = (date: Date) => {

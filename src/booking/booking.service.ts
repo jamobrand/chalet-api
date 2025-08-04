@@ -138,7 +138,6 @@ export class BookingService {
         prepareReservationTokenDto.services ||
         generateBookingServices(
           prepareReservationTokenDto.checkIn,
-          prepareReservationTokenDto.checkOut,
           chalet.name || 'Chalet Booking',
         );
 
@@ -154,9 +153,6 @@ export class BookingService {
           serviceType: service.serviceType,
           serviceDescription: service.serviceDescription,
           serviceDate: service.serviceDate,
-          // Only include optional fields if they have values
-          ...(service.serviceFrom && { serviceFrom: service.serviceFrom }),
-          ...(service.serviceTo && { serviceTo: service.serviceTo }),
         })),
       });
 
