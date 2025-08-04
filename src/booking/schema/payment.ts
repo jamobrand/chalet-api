@@ -55,13 +55,8 @@ export const verifyPaymentSchema = z.object({
 });
 
 // Helper function to generate services from booking data
-export const generateBookingServices = (
-  checkIn: string,
-  checkOut: string,
-  chaletName: string = 'cHALET Booking',
-) => {
+export const generateBookingServices = (checkIn: string, chaletName: string = 'cHALET Booking') => {
   const checkInDate = new Date(checkIn);
-  const checkOutDate = new Date(checkOut);
 
   const formatServiceDate = (date: Date) => {
     const year = date.getFullYear();
@@ -74,11 +69,11 @@ export const generateBookingServices = (
 
   return [
     {
-      serviceType: 54841, // DPO service type for accommodation
+      serviceType: 54841, // Use the test service type provided by DPO
       serviceDescription: `${chaletName} - Accommodation Booking`,
       serviceDate: formatServiceDate(checkInDate),
-      serviceFrom: formatServiceDate(checkInDate),
-      serviceTo: formatServiceDate(checkOutDate),
+      // Remove serviceFrom and serviceTo since they're not applicable for chalet bookings
+      // and DPO expects 2-3 character location codes, not datetime strings
     },
   ];
 };
