@@ -13,5 +13,3 @@ chaletRoutes.get('/home/chalets', chaletController.getChaletsHome);
 chaletRoutes.post('/booking/reserve-chalet', chaletController.reserveChalet);
 
 export default chaletRoutes;
-
-// /booking/reserve-chalet

@@ -22,6 +22,8 @@ import addonRoutes from './addons/addon.routes';
 import ruleRoutes from './rules/rule.routes';
 import dashboardRoutes from './dashboard/dashboard.routes';
 import imageUploadRoutes from './s3-image-uploader/image-upload.routes';
+import dpoRoutes from './dpo-payment/dpo.routes';
+import bookingRoutes from './booking/booking.routes';
 
 const app = express();
 const BASE_PATH = config.BASE_PATH;
@@ -188,6 +190,8 @@ app.use(`${BASE_PATH}/transactions`, transactionRoutes);
 app.use(`${BASE_PATH}/addons`, addonRoutes);
 app.use(`${BASE_PATH}/rules`, ruleRoutes);
 app.use(`${BASE_PATH}/dashboard`, dashboardRoutes);
+app.use(`${BASE_PATH}/dpo`, dpoRoutes);
+app.use(`${BASE_PATH}/booking`, bookingRoutes);
 
 app.use((_req, res) => {
   res.status(httpStatus.NOT_FOUND).json({

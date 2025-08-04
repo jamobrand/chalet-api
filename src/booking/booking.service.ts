@@ -1,0 +1,485 @@
+import crypto from 'crypto';
+import { DPOService } from '../dpo-payment/dpo.service';
+import { PendingReservation } from './types/bookin.types';
+import { CreatePaymentTokenDto } from './dto/create-payment-booking.dto';
+import prismaClient from '../config/prisma';
+import { BadRequestException } from '../common/utils/catch-errors';
+import { ErrorCode } from '../common/enum/error-code.enum';
+import { config } from '../config/app.config';
+import sendEmailTwo from '../mailers/mailer-two';
+import { bookingConfirmationTemplate } from '../mailers/templates/booking-confirmation';
+import { generateBookingServices } from './schema/payment';
+import {
+  mapDPOPaymentMethod,
+  mapDPOPaymentStatus,
+  validateDPOPayment,
+} from '../utils/payment-mapping';
+
+export class BookingService {
+  private dpoService: DPOService;
+  private pendingReservations = new Map<string, PendingReservation>();
+
+  constructor() {
+    this.dpoService = new DPOService();
+    // Clean up expired reservations every 30 minutes
+    setInterval(() => this.cleanupExpiredReservations(), 30 * 60 * 1000);
+  }
+
+  /**
+   * Clean up expired reservations
+   */
+  private cleanupExpiredReservations(): void {
+    const now = new Date();
+    for (const [key, reservation] of this.pendingReservations.entries()) {
+      if (reservation.expiresAt < now) {
+        this.pendingReservations.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Generate a secure reservation reference
+   */
+  private generateReservationReference(): string {
+    const timestamp = Date.now();
+    const randomBytes = crypto.randomBytes(8).toString('hex');
+    return `CHA-BOOK-${timestamp}-${randomBytes}`;
+  }
+
+  /**
+   * Store pending reservation temporarily (30 minutes)
+   */
+  private storePendingReservation(
+    reference: string,
+    data: Omit<PendingReservation, 'id' | 'expiresAt' | 'createdAt'>,
+  ): void {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000); // 30 minutes
+
+    this.pendingReservations.set(reference, {
+      id: reference,
+      ...data,
+      expiresAt,
+      createdAt: now,
+    });
+  }
+
+  /**
+   * Get pending reservation
+   */
+  private getPendingReservation(reference: string): PendingReservation | null {
+    const reservation = this.pendingReservations.get(reference);
+    if (!reservation) return null;
+
+    // Check if expired
+    if (reservation.expiresAt < new Date()) {
+      this.pendingReservations.delete(reference);
+      return null;
+    }
+
+    return reservation;
+  }
+
+  /**
+   * Create payment token for DPO payment and prepare reservation
+   */
+  public async createPaymentTokenAndPrepareReservation(
+    prepareReservationTokenDto: CreatePaymentTokenDto,
+  ) {
+    try {
+      // Generate unique reference for this reservation
+      const reservationReference = this.generateReservationReference();
+
+      // Validate chalet exists and is available for selected dates
+      const chalet = await prismaClient.chalet.findUnique({
+        where: { id: prepareReservationTokenDto.chaletId },
+      });
+
+      if (!chalet) {
+        throw new BadRequestException('Chalet not found', ErrorCode.CHALET_NOT_FOUND);
+      }
+
+      // Check for conflicting bookings
+      const conflictingBookings = await prismaClient.chaletBooking.findMany({
+        where: {
+          chaletId: prepareReservationTokenDto.chaletId,
+          status: {
+            in: ['CONFIRMED', 'CHECKED_IN'],
+          },
+          bookingDates: {
+            some: {
+              date: {
+                in: prepareReservationTokenDto.selectedDates.map((date) => new Date(date)),
+              },
+            },
+          },
+        },
+      });
+
+      if (conflictingBookings.length > 0) {
+        throw new Error('Selected dates are not available');
+      }
+
+      // Store pending reservation
+      this.storePendingReservation(reservationReference, {
+        chaletId: prepareReservationTokenDto.chaletId,
+        checkIn: prepareReservationTokenDto.checkIn,
+        checkOut: prepareReservationTokenDto.checkOut,
+        adults: prepareReservationTokenDto.adults,
+        children: prepareReservationTokenDto.children,
+        totalCost: prepareReservationTokenDto.totalCost,
+        selectedDates: prepareReservationTokenDto.selectedDates,
+        addons: prepareReservationTokenDto.addons,
+        customer: prepareReservationTokenDto.customer,
+      });
+
+      // Generate services if not provided
+      const services =
+        prepareReservationTokenDto.services ||
+        generateBookingServices(
+          prepareReservationTokenDto.checkIn,
+          prepareReservationTokenDto.checkOut,
+          chalet.name || 'Chalet Booking',
+        );
+
+      // Create DPO payment token
+      const tokenResponse = await this.dpoService.createToken({
+        paymentAmount: prepareReservationTokenDto.totalCost,
+        paymentCurrency: 'KES',
+        companyRef: reservationReference,
+        redirectUrl: `${config.FRONTEND_URL}/payment/success?ref=${reservationReference}`,
+        backUrl: `${config.FRONTEND_URL}/payment/cancel?ref=${reservationReference}`,
+        customer: prepareReservationTokenDto.customer,
+        services: services.map((service) => ({
+          serviceType: service.serviceType,
+          serviceDescription: service.serviceDescription,
+          serviceDate: service.serviceDate,
+          // Only include optional fields if they have values
+          ...(service.serviceFrom && { serviceFrom: service.serviceFrom }),
+          ...(service.serviceTo && { serviceTo: service.serviceTo }),
+        })),
+      });
+
+      if (tokenResponse.result !== '000') {
+        throw new Error(
+          `Payment token creation failed: ${tokenResponse.result} ${tokenResponse.resultExplanation}`,
+        );
+      }
+
+      // Update pending reservation with token
+      const pendingReservation = this.pendingReservations.get(reservationReference);
+      if (pendingReservation && tokenResponse.transToken) {
+        pendingReservation.transToken = tokenResponse.transToken;
+        this.pendingReservations.set(reservationReference, pendingReservation);
+      }
+
+      return {
+        reservationReference,
+        transToken: tokenResponse.transToken,
+        paymentUrl: this.dpoService.generatePaymentUrl(tokenResponse.transToken!),
+        expiresIn: 30 * 60 * 1000, // 30 minutes in milliseconds
+      };
+    } catch (error) {
+      console.error('Create payment token error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify payment and complete reservation
+   */
+
+  public async verifyPaymentAndCompleteReservation(reservationReference: string) {
+    try {
+      // Get pending reservation
+      const pendingReservation = this.getPendingReservation(reservationReference);
+      if (!pendingReservation) {
+        throw new Error('Reservation not found or expired');
+      }
+
+      if (!pendingReservation.transToken) {
+        throw new Error('Payment token not found for this reservation');
+      }
+
+      // Verify payment with DPO
+      const verificationResponse = await this.dpoService.verifyToken({
+        transactionToken: pendingReservation.transToken,
+        companyRef: reservationReference,
+        verifyTransaction: true,
+      });
+
+      if (verificationResponse.result !== '000') {
+        throw new Error(`Payment verification failed: ${verificationResponse.resultExplanation}`);
+      }
+
+      // Check if payment was successful
+      const isPaymentSuccessful =
+        verificationResponse.transactionApproval === 'Y' ||
+        verificationResponse.transactionApproval === 'Approved';
+
+      if (!isPaymentSuccessful) {
+        throw new Error('Payment was not successful');
+      }
+
+      // Create customer record
+      const customerRecord = await prismaClient.customer.create({
+        data: {
+          firstName: pendingReservation.customer.firstName,
+          lastName: pendingReservation.customer.lastName,
+          email: pendingReservation.customer.email,
+          phone: pendingReservation.customer.phone,
+          addresss: pendingReservation.customer.address,
+          nationality: pendingReservation.customer.nationality,
+          passportNumber: pendingReservation.customer.nationalIdNumber,
+        },
+      });
+
+      // Create booking
+      const booking = await prismaClient.chaletBooking.create({
+        data: {
+          customerId: customerRecord.id,
+          chaletId: pendingReservation.chaletId,
+          checkIn: new Date(pendingReservation.checkIn),
+          checkOut: new Date(pendingReservation.checkOut),
+          numberOfAdults: pendingReservation.adults,
+          numberOfChildren: pendingReservation.children,
+          totalCost: pendingReservation.totalCost,
+          status: 'CONFIRMED',
+          bookingReference: reservationReference,
+          totalGuests: pendingReservation.adults + pendingReservation.children,
+        },
+      });
+
+      // Create booking dates
+      const transformedDates = pendingReservation.selectedDates.map((date) => ({
+        bookingId: booking.id,
+        date: new Date(date),
+      }));
+
+      await prismaClient.bookingDate.createMany({
+        data: transformedDates,
+        skipDuplicates: true,
+      });
+
+      // Create booking addons if any
+      if (pendingReservation.addons.length > 0) {
+        const transformedAddons = pendingReservation.addons.map((addon) => ({
+          bookingId: booking.id,
+          addOnId: addon.addonId,
+        }));
+
+        await prismaClient.bookingAddon.createMany({
+          data: transformedAddons,
+          skipDuplicates: true,
+        });
+      }
+
+      // Validate payment details
+      const paymentValidation = validateDPOPayment(
+        verificationResponse,
+        pendingReservation.totalCost,
+        'KES',
+      );
+
+      if (!paymentValidation.isValid) {
+        throw new Error(`Payment validation failed: ${paymentValidation.errors.join(', ')}`);
+      }
+
+      // Log warnings if any
+      if (paymentValidation.warnings.length > 0) {
+        console.warn('Payment validation warnings:', paymentValidation.warnings);
+      }
+
+      // Map DPO response to your enum values
+      const paymentMethod = mapDPOPaymentMethod(verificationResponse);
+      const paymentStatus = mapDPOPaymentStatus(verificationResponse);
+
+      // Create payment record with proper enum values
+      await prismaClient.payment.create({
+        data: {
+          bookingId: booking.id,
+          amount: verificationResponse.transactionAmount || pendingReservation.totalCost,
+          method: paymentMethod,
+          transactionId: verificationResponse.accRef || pendingReservation.transToken,
+          status: paymentStatus,
+          // Optional: Store additional DPO details in a JSON field if you have one
+          // metadata: {
+          //   dpoTransactionApproval: verificationResponse.transactionApproval,
+          //   dpoCurrency: verificationResponse.transactionCurrency,
+          //   dpoNetAmount: verificationResponse.transactionNetAmount,
+          //   dpoSettlementDate: verificationResponse.transactionSettlementDate,
+          //   customerCreditType: verificationResponse.customerCreditType,
+          // }
+        },
+      });
+
+      // Remove from pending reservations
+      this.pendingReservations.delete(reservationReference);
+
+      // Send confirmation email
+      await sendEmailTwo({
+        to: pendingReservation.customer.email,
+        from: process.env['EMAIL_FROM'],
+        ...bookingConfirmationTemplate({
+          booking: {
+            ...booking,
+            customer: customerRecord,
+            checkIn: new Date(pendingReservation.checkIn),
+            checkOut: new Date(pendingReservation.checkOut),
+            totalAmount: pendingReservation.totalCost,
+          },
+        }),
+      });
+
+      // Get complete reservation details
+      const completedReservation = await prismaClient.chaletBooking.findUnique({
+        where: { id: booking.id },
+        include: {
+          chalet: true,
+          customer: true,
+          bookingDates: true,
+          payments: true,
+          bookingAddOn: {
+            include: {
+              addOn: true,
+            },
+          },
+        },
+      });
+
+      return {
+        booking: completedReservation,
+        paymentDetails: verificationResponse,
+      };
+    } catch (error) {
+      console.error('Verify payment and complete reservation error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle DPO webhook for payment notifications
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public async handlePaymentWebhook(payload: any, signature?: string) {
+    try {
+      // Validate webhook signature if provided
+      if (signature && !this.dpoService.validateWebhookPayload(JSON.stringify(payload))) {
+        throw new Error('Invalid webhook signature');
+      }
+
+      const { CompanyRef: reservationReference, TransToken: transToken, Result: result } = payload;
+
+      if (!reservationReference || !transToken) {
+        throw new Error('Invalid webhook payload');
+      }
+
+      // If payment is successful, complete the reservation
+      if (result === '000') {
+        try {
+          await this.verifyPaymentAndCompleteReservation(reservationReference);
+        } catch (error) {
+          console.error('Webhook reservation completion error:', error);
+          // Don't throw here as the webhook should still return success
+        }
+      }
+
+      return { status: 'success', message: 'Webhook processed' };
+    } catch (error) {
+      console.error('Webhook processing error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel pending reservation
+   */
+  public async cancelPendingReservation(reservationReference: string): Promise<void> {
+    try {
+      const pendingReservation = this.getPendingReservation(reservationReference);
+      if (pendingReservation) {
+        // Remove from pending reservations
+        this.pendingReservations.delete(reservationReference);
+        console.log(`Cancelled pending reservation: ${reservationReference}`);
+      }
+    } catch (error) {
+      console.error('Cancel pending reservation error:', error);
+      // Don't throw error as this is cleanup
+    }
+  }
+
+  /**
+   * Get reservation status by booking ID (for success redirects)
+   */
+  public async getReservationByBookingId(bookingId: string) {
+    try {
+      const reservation = await prismaClient.chaletBooking.findUnique({
+        where: { id: bookingId },
+        include: {
+          chalet: true,
+          customer: true,
+          bookingDates: true,
+          payments: true,
+          bookingAddOn: {
+            include: {
+              addOn: true,
+            },
+          },
+        },
+      });
+
+      return reservation;
+    } catch (error) {
+      console.error('Get reservation by booking ID error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get booking status
+   */
+  public async getBookingStatusByReference(reservationReference: string) {
+    // Check if it's a pending reservation
+    const pendingReservation = this.getPendingReservation(reservationReference);
+    if (pendingReservation) {
+      return {
+        status: 'PENDING',
+        reservation: pendingReservation,
+      };
+    }
+
+    // Check if it's a completed reservation
+    const completedReservation = await prismaClient.chaletBooking.findFirst({
+      where: {
+        payments: {
+          some: {
+            transactionId: reservationReference,
+          },
+        },
+      },
+      include: {
+        chalet: true,
+        customer: true,
+        bookingDates: true,
+        payments: true,
+        bookingAddOn: {
+          include: {
+            addOn: true,
+          },
+        },
+      },
+    });
+
+    if (completedReservation) {
+      return {
+        status: completedReservation.status,
+        reservation: completedReservation,
+      };
+    }
+
+    return {
+      status: 'NOT_FOUND',
+      reservation: null,
+    };
+  }
+}

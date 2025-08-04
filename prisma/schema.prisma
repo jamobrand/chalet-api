@@ -317,6 +317,7 @@ model ChaletAmenity {
 
 model ChaletBooking {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bookingReference String?   @unique 
   chaletId         String   @db.Uuid
   chalet           Chalet   @relation(fields: [chaletId], references: [id], onDelete: Cascade)
   checkIn          DateTime

@@ -13,6 +13,9 @@ const appConfig = () => ({
   REDIS_PORT: getEnv('REDIS_PORT', '8001'),
   MAILER_SENDER: getEnv('MAILER_SENDER'),
   RESEND_API_KEY: getEnv('RESEND_API_KEY'),
+  DPO_COMPANY_TOKEN: getEnv('DPO_COMPANY_TOKEN'),
+  DPO_BASE_URL: getEnv('DPO_BASE_URL'),
+  DPO_PAYMENT_URL: getEnv('DPO_PAYMENT_URL'),
   JWT: {
     SECRET: getEnv('JWT_SECRET'),
     EXPIRES_IN: getEnv('JWT_SECRET_EXPIRE'),
