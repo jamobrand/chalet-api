@@ -26,6 +26,7 @@ export function mapDPOPaymentMethod(
     creditType?.includes('card') ||
     creditType?.includes('credit') ||
     creditType?.includes('visa') ||
+    creditType?.includes('MASC') ||
     creditType?.includes('mastercard')
   ) {
     return 'CREDIT_CARD';
@@ -58,7 +59,7 @@ export function mapDPOPaymentStatus(verificationResponse: VerifyTokenResponse): 
   const result = verificationResponse.result;
 
   // Check if payment was successful
-  if (result === '000' && (approval === 'y' || approval === 'approved')) {
+  if (result === '000' && approval && /^\d+$/.test(approval)) {
     return 'FULLY_PAID';
   }
 
@@ -158,10 +159,10 @@ export function validateDPOPayment(
   }
 
   // Check payment approval
-  const approval = verificationResponse.transactionApproval?.toLowerCase();
-  if (approval !== 'y' && approval !== 'approved') {
+  const approval = verificationResponse.transactionApproval;
+  if (!approval || !/^\d+$/.test(approval)) {
     result.isValid = false;
-    result.errors.push(`Payment not approved. Status: ${verificationResponse.transactionApproval}`);
+    result.errors.push(`Payment not approved. Status: ${approval}`);
   }
 
   // Validate amount

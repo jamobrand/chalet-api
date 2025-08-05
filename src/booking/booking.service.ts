@@ -286,6 +286,9 @@ export class BookingService {
         'KES',
       );
 
+      console.log('Payment validation result:', paymentValidation);
+
+      // If validation fails, throw an error with detailed messages and warnings
       if (!paymentValidation.isValid) {
         throw new Error(`Payment validation failed: ${paymentValidation.errors.join(', ')}`);
       }
