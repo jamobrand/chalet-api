@@ -16,6 +16,18 @@ import {
 } from '../utils/payment-mapping';
 import { Decimal } from '@prisma/client/runtime/library';
 
+const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ123456789';
+const LENGTH = 7;
+
+async function generateBookingCode(): Promise<string> {
+  let code = '';
+  for (let i = 0; i < LENGTH; i++) {
+    const idx = await crypto.randomInt(0, CHARS.length);
+    code += CHARS[idx];
+  }
+  return code;
+}
+
 export class BookingService {
   private dpoService: DPOService;
   private pendingReservations = new Map<string, PendingReservation>();
@@ -41,10 +53,9 @@ export class BookingService {
   /**
    * Generate a secure reservation reference
    */
-  private generateReservationReference(): string {
-    const timestamp = Date.now();
-    const randomBytes = crypto.randomBytes(8).toString('hex');
-    return `CHA-BOOK-${timestamp}-${randomBytes}`;
+  private async generateReservationReference(): Promise<string> {
+    const code = await generateBookingCode();
+    return `CHA-${code}`;
   }
 
   /**
@@ -89,7 +100,7 @@ export class BookingService {
   ) {
     try {
       // Generate unique reference for this reservation
-      const reservationReference = this.generateReservationReference();
+      const reservationReference = await this.generateReservationReference();
 
       // Validate chalet exists and is available for selected dates
       const chalet = await prismaClient.chalet.findUnique({
