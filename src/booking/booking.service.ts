@@ -189,6 +189,8 @@ export class BookingService {
     try {
       // Get pending reservation
       const pendingReservation = this.getPendingReservation(reservationReference);
+      console.log('Pending reservation:', pendingReservation);
+
       if (!pendingReservation) {
         throw new Error('Reservation not found or expired');
       }
@@ -204,6 +206,8 @@ export class BookingService {
         verifyTransaction: true,
       });
 
+      console.log('DPO verification response:', verificationResponse);
+
       if (verificationResponse.result !== '000') {
         throw new Error(`Payment verification failed: ${verificationResponse.resultExplanation}`);
       }
@@ -212,6 +216,8 @@ export class BookingService {
       const isPaymentSuccessful =
         verificationResponse.transactionApproval === 'Y' ||
         verificationResponse.transactionApproval === 'Approved';
+
+      console.log('Is payment successful:', isPaymentSuccessful);
 
       if (!isPaymentSuccessful) {
         throw new Error('Payment was not successful');
@@ -298,14 +304,6 @@ export class BookingService {
           method: paymentMethod,
           transactionId: verificationResponse.accRef || pendingReservation.transToken,
           status: paymentStatus,
-          // Optional: Store additional DPO details in a JSON field if you have one
-          // metadata: {
-          //   dpoTransactionApproval: verificationResponse.transactionApproval,
-          //   dpoCurrency: verificationResponse.transactionCurrency,
-          //   dpoNetAmount: verificationResponse.transactionNetAmount,
-          //   dpoSettlementDate: verificationResponse.transactionSettlementDate,
-          //   customerCreditType: verificationResponse.customerCreditType,
-          // }
         },
       });
 
