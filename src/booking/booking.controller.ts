@@ -65,17 +65,33 @@ export class BookingController {
    */
   public handleDPOWebhook = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
     try {
-      // Get signature from headers if DPO provides one
-      //   const signature = req.headers['x-dpo-signature'] as string;
+      console.log('DPO Webhook received:', {
+        headers: req.headers,
+        body: req.body,
+      });
 
+      // Get signature from headers (if DPO provides one)
+      // const signature = req.headers['x-dpo-signature'] as string;
+
+      // await this.bookingService.handlePaymentWebhook(req.body, signature);
       await this.bookingService.handlePaymentWebhook(req.body);
 
-      // DPO expects a specific response format - check their documentation
-      return res.status(httpStatus.OK).send('OK');
+      // DPO expects a 200 OK response
+      return res.status(httpStatus.OK).json({
+        status: 'success',
+        message: 'Webhook processed successfully',
+      });
     } catch (error) {
-      console.error('Webhook error:', error);
-      // Still return OK to prevent DPO from retrying failed webhooks indefinitely
-      return res.status(httpStatus.OK).send('OK');
+      console.error('Webhook controller error:', error);
+
+      // For production: Consider returning 200 OK even on errors
+      // to prevent DPO from retrying failed webhooks indefinitely
+      // Only return error for critical validation failures
+
+      return res.status(httpStatus.OK).json({
+        status: 'error',
+        message: 'Webhook processing failed but acknowledged',
+      });
     }
   });
 

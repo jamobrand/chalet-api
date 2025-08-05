@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { DPOService } from './dpo.service';
-import { CreateTokenRequest, VerifyTokenRequest, WebhookPayload } from './types/dpo.types';
+import { CreateTokenRequest, VerifyTokenRequest } from './types/dpo.types';
 import { asyncHandler } from '../common/utils/asyncHandler';
 import { BookingService } from '../booking/booking.service';
 import httpStatus from 'http-status';
@@ -133,7 +133,7 @@ export class DpoController {
 
       console.log('Validated webhook payload:', webhookPayload);
       // Process webhook (you can add your business logic here)
-      await this.processWebhookPayload(webhookPayload);
+      // await this.processWebhookPayload(webhookPayload);
 
       // Respond with ACK as required by DPO
       res.status(200).send('OK');
@@ -224,32 +224,32 @@ export class DpoController {
     return statusMap[resultCode] || 'UNKNOWN';
   }
 
-  private async processWebhookPayload(payload: WebhookPayload): Promise<void> {
-    // Add your business logic here
-    // For example:
-    // - Update order status in database
-    // - Send confirmation emails
-    // - Update inventory
-    // - Log transaction details
+  // private async processWebhookPayload(payload: WebhookPayload): Promise<void> {
+  //   // Add your business logic here
+  //   // For example:
+  //   // - Update order status in database
+  //   // - Send confirmation emails
+  //   // - Update inventory
+  //   // - Log transaction details
 
-    console.log('Processing webhook payload:', {
-      transactionToken: payload.TransactionToken,
-      companyRef: payload.CompanyRef,
-      amount: payload.TransactionAmount,
-      currency: payload.TransactionCurrency,
-      customerName: payload.CustomerName,
-      fraudAlert: payload.FraudAlert,
-    });
+  //   console.log('Processing webhook payload:', {
+  //     transactionToken: payload.TransactionToken,
+  //     companyRef: payload.CompanyRef,
+  //     amount: payload.TransactionAmount,
+  //     currency: payload.TransactionCurrency,
+  //     customerName: payload.CustomerName,
+  //     fraudAlert: payload.FraudAlert,
+  //   });
 
-    // Example: You might want to verify the transaction status
-    try {
-      const verificationResult = await this.dpoService.verifyToken({
-        transactionToken: payload.TransactionToken,
-      });
+  //   // Example: You might want to verify the transaction status
+  //   try {
+  //     const verificationResult = await this.dpoService.verifyToken({
+  //       transactionToken: payload.TransactionToken,
+  //     });
 
-      console.log('Webhook verification result:', verificationResult);
-    } catch (error) {
-      console.error('Failed to verify webhook transaction:', error);
-    }
-  }
+  //     console.log('Webhook verification result:', verificationResult);
+  //   } catch (error) {
+  //     console.error('Failed to verify webhook transaction:', error);
+  //   }
+  // }
 }
