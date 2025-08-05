@@ -64,3 +64,10 @@ export interface ChaletDataDto {
   availability: UnavailableDates;
   images: ImageData[];
 }
+
+export interface EditChaletDataDto {
+  name: string;
+  propertyType: PropertyTypeEnum;
+  description: string;
+  basePrice: number;
+}

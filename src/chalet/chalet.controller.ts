@@ -99,4 +99,14 @@ export class ChaletController {
       data: booking,
     });
   });
+
+  public editChalet = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
+    const chaletId = z.string().parse(req.params['chaletId']);
+    const { chalet } = await this.chaletService.editChalet(chaletId, req.body);
+
+    return res.status(httpStatus.OK).json({
+      message: 'Chalet updated successfully',
+      data: chalet,
+    });
+  });
 }

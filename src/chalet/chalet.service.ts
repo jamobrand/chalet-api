@@ -1,6 +1,6 @@
 import { BadRequestException } from '../common/utils/catch-errors';
 import prismaClient from '../config/prisma';
-import { ChaletDataDto } from './dtos/create-chalet.dto';
+import { ChaletDataDto, EditChaletDataDto } from './dtos/create-chalet.dto';
 import { ErrorCode } from '../common/enum/error-code.enum';
 import {
   AvailabilityCalendar,
@@ -509,6 +509,34 @@ export class ChaletService {
 
     return {
       booking: reservedChalet,
+    };
+  }
+
+  public async editChalet(chaletId: string, chaletData: EditChaletDataDto) {
+    const { name, propertyType, description, basePrice } = chaletData;
+
+    // Check if chalet exists
+    const chalet = await prismaClient.chalet.findUnique({
+      where: { id: chaletId },
+    });
+
+    if (!chalet) {
+      throw new BadRequestException('Chalet not found', ErrorCode.CHALET_NOT_FOUND);
+    }
+
+    // Update chalet details
+    const updatedChalet = await prismaClient.chalet.update({
+      where: { id: chaletId },
+      data: {
+        name,
+        propertyType,
+        description,
+        basePrice,
+      },
+    });
+
+    return {
+      chalet: updatedChalet,
     };
   }
 }
