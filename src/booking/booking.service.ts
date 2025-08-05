@@ -496,14 +496,10 @@ export class BookingService {
       };
     }
 
-    // Check if it's a completed reservation
+    // Check if it's a completed reservation - FIX THIS PART
     const completedReservation = await prismaClient.chaletBooking.findFirst({
       where: {
-        payments: {
-          some: {
-            transactionId: reservationReference,
-          },
-        },
+        bookingReference: reservationReference, // ← Use bookingReference instead
       },
       include: {
         chalet: true,

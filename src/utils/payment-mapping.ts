@@ -9,15 +9,31 @@ export function mapDPOPaymentMethod(
   verificationResponse: VerifyTokenResponse,
   defaultPayment?: string,
 ): PaymentMethod {
-  // Check customer credit type or default payment method from DPO response
   const creditType = verificationResponse.customerCreditType?.toLowerCase();
   const mobilePaymentRequest = verificationResponse.mobilePaymentRequest;
 
   console.log('Mapping DPO payment method creditType:', creditType);
   console.log('Mapping DPO payment method mobilePaymentRequest:', mobilePaymentRequest);
 
-  // Map based on DPO response indicators
-  if (mobilePaymentRequest || creditType?.includes('mobile') || creditType?.includes('mpesa')) {
+  // Check for credit card first (more specific)
+  if (
+    creditType?.includes('card') ||
+    creditType?.includes('credit') ||
+    creditType?.includes('visa') ||
+    creditType?.includes('masc') ||
+    creditType?.includes('mastercard') ||
+    creditType?.includes('amex')
+  ) {
+    return 'CREDIT_CARD';
+  }
+
+  // Then check for mobile money (ensure mobilePaymentRequest is not "Not sent")
+  if (
+    (mobilePaymentRequest && mobilePaymentRequest !== 'Not sent') ||
+    creditType?.includes('mobile') ||
+    creditType?.includes('mpesa') ||
+    creditType?.includes('airtel')
+  ) {
     return 'MOBILE_MONEY';
   }
 
@@ -25,33 +41,22 @@ export function mapDPOPaymentMethod(
     return 'BANK_TRANSFER';
   }
 
-  if (
-    creditType?.includes('card') ||
-    creditType?.includes('credit') ||
-    creditType?.includes('visa') ||
-    creditType?.includes('masc') ||
-    creditType?.includes('mastercard')
-  ) {
-    return 'CREDIT_CARD';
-  }
-
-  // Check default payment method if provided during token creation
+  // Check default payment method if provided
   if (defaultPayment) {
     switch (defaultPayment.toUpperCase()) {
-      case 'MO': // Mobile Money
+      case 'MO':
         return 'MOBILE_MONEY';
-      case 'BT': // Bank Transfer
+      case 'BT':
         return 'BANK_TRANSFER';
-      case 'CC': // Credit Card
-        return 'CREDIT_CARD';
-      case 'XP': // Express Checkout
+      case 'CC':
+      case 'XP':
         return 'CREDIT_CARD';
       default:
-        return 'CREDIT_CARD'; // Default fallback
+        return 'CREDIT_CARD';
     }
   }
 
-  // Default to credit card if we can't determine the method
+  // Default fallback
   return 'CREDIT_CARD';
 }
 
