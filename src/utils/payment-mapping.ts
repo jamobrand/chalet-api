@@ -13,6 +13,9 @@ export function mapDPOPaymentMethod(
   const creditType = verificationResponse.customerCreditType?.toLowerCase();
   const mobilePaymentRequest = verificationResponse.mobilePaymentRequest;
 
+  console.log('Mapping DPO payment method creditType:', creditType);
+  console.log('Mapping DPO payment method mobilePaymentRequest:', mobilePaymentRequest);
+
   // Map based on DPO response indicators
   if (mobilePaymentRequest || creditType?.includes('mobile') || creditType?.includes('mpesa')) {
     return 'MOBILE_MONEY';
@@ -26,7 +29,7 @@ export function mapDPOPaymentMethod(
     creditType?.includes('card') ||
     creditType?.includes('credit') ||
     creditType?.includes('visa') ||
-    creditType?.includes('MASC') ||
+    creditType?.includes('masc') ||
     creditType?.includes('mastercard')
   ) {
     return 'CREDIT_CARD';
@@ -40,6 +43,7 @@ export function mapDPOPaymentMethod(
       case 'BT': // Bank Transfer
         return 'BANK_TRANSFER';
       case 'CC': // Credit Card
+        return 'CREDIT_CARD';
       case 'XP': // Express Checkout
         return 'CREDIT_CARD';
       default:
