@@ -12,9 +12,6 @@ export function mapDPOPaymentMethod(
   const creditType = verificationResponse.customerCreditType?.toLowerCase();
   const mobilePaymentRequest = verificationResponse.mobilePaymentRequest;
 
-  console.log('Mapping DPO payment method creditType:', creditType);
-  console.log('Mapping DPO payment method mobilePaymentRequest:', mobilePaymentRequest);
-
   // Check for credit card first (more specific)
   if (
     creditType?.includes('card') ||

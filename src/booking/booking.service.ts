@@ -201,7 +201,6 @@ export class BookingService {
     try {
       // Get pending reservation
       const pendingReservation = this.getPendingReservation(reservationReference);
-      console.log('Pending reservation:', pendingReservation);
 
       if (!pendingReservation) {
         throw new Error('Reservation not found or expired');
@@ -218,8 +217,6 @@ export class BookingService {
         verifyTransaction: true,
       });
 
-      console.log('DPO verification response:', verificationResponse);
-
       if (verificationResponse.result !== '000') {
         throw new Error(`Payment verification failed: ${verificationResponse.resultExplanation}`);
       }
@@ -230,8 +227,6 @@ export class BookingService {
         verificationResponse.transactionApproval &&
         verificationResponse.transactionApproval !== '' &&
         verificationResponse.transactionApproval !== 'null';
-
-      console.log('Is payment successful:', isPaymentSuccessful);
 
       if (!isPaymentSuccessful) {
         throw new Error('Payment was not successful');
@@ -297,8 +292,6 @@ export class BookingService {
         'KES',
       );
 
-      console.log('Payment validation result:', paymentValidation);
-
       // If validation fails, throw an error with detailed messages and warnings
       if (!paymentValidation.isValid) {
         throw new Error(`Payment validation failed: ${paymentValidation.errors.join(', ')}`);
@@ -312,9 +305,6 @@ export class BookingService {
       // Map DPO response to your enum values
       const paymentMethod = mapDPOPaymentMethod(verificationResponse);
       const paymentStatus = mapDPOPaymentStatus(verificationResponse);
-
-      console.log('Mapped payment method:', paymentMethod);
-      console.log('Mapped payment status:', paymentStatus);
 
       // Create payment record with proper enum values
 
