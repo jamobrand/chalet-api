@@ -27,3 +27,39 @@ export interface PendingReservation {
   expiresAt: Date;
   createdAt: Date;
 }
+
+// Add this interface to your types file
+export interface DPOWebhookPayload {
+  // Always present fields
+  CompanyRef: string; // Your reservation reference
+  TransToken: string; // DPO transaction token
+  Result: string; // Result code ('000', '001', etc.)
+
+  // Usually present fields
+  ResultExplanation?: string; // Human readable result
+  TransactionApproval?: string; // Approval code (can be empty for failed payments)
+  TransactionCurrency?: string; // Currency code
+  TransactionAmount?: number; // Amount paid
+
+  // Customer fields (optional)
+  CustomerName?: string;
+  CustomerCredit?: string;
+  CustomerCreditType?: string;
+  CustomerPhone?: string;
+  CustomerAddress?: string;
+  CustomerCountry?: string;
+  CustomerCity?: string;
+  CustomerZip?: string;
+
+  // Transaction details (optional)
+  AccRef?: string; // Account reference
+  TransactionNetAmount?: number;
+  TransactionSettlementDate?: string;
+
+  // Risk/fraud fields (optional)
+  FraudAlert?: string;
+  FraudExplanation?: string;
+
+  // Mobile payment specific (optional)
+  MobilePaymentRequest?: string;
+}

@@ -1,12 +1,17 @@
 import { Request, Response } from 'express';
 import { DPOService } from './dpo.service';
 import { CreateTokenRequest, VerifyTokenRequest, WebhookPayload } from './types/dpo.types';
+import { asyncHandler } from '../common/utils/asyncHandler';
+import { BookingService } from '../booking/booking.service';
+import httpStatus from 'http-status';
 
 export class DpoController {
   private dpoService: DPOService;
+  private bookingService: BookingService; // Assuming you have a BookingService to handle bookings
 
-  constructor(dpoService: DPOService) {
+  constructor(dpoService: DPOService, bookingService: BookingService) {
     this.dpoService = dpoService;
+    this.bookingService = bookingService; // Initialize your booking service
   }
 
   /**
@@ -139,6 +144,37 @@ export class DpoController {
       res.status(200).send('OK');
     }
   }
+
+  public handleDPOWebhook = asyncHandler(async (req: Request, res: Response): Promise<Response> => {
+    try {
+      console.log('DPO Webhook received:', {
+        headers: req.headers,
+        body: req.body,
+      });
+
+      // Get signature from headers (if DPO provides one)
+      // const signature = req.headers['x-dpo-signature'] as string;
+
+      await this.bookingService.handlePaymentWebhook(req.body);
+
+      // DPO expects a 200 OK response
+      return res.status(httpStatus.OK).json({
+        status: 'success',
+        message: 'Webhook processed successfully',
+      });
+    } catch (error) {
+      console.error('Webhook controller error:', error);
+
+      // For production: Consider returning 200 OK even on errors
+      // to prevent DPO from retrying failed webhooks indefinitely
+      // Only return error for critical validation failures
+
+      return res.status(httpStatus.OK).json({
+        status: 'error',
+        message: 'Webhook processing failed but acknowledged',
+      });
+    }
+  });
 
   private validateCreateTokenRequest(request: CreateTokenRequest): void {
     const requiredFields = [

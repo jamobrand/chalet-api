@@ -7,8 +7,8 @@ import {
   CreateTokenResponse,
   VerifyTokenRequest,
   VerifyTokenResponse,
-  WebhookPayload,
 } from './types/dpo.types';
+import { DPOWebhookPayload } from '../booking/types/bookin.types';
 
 export class DPOService {
   private readonly baseUrl = config.DPO_BASE_URL;
@@ -202,21 +202,36 @@ export class DPOService {
    * Validate webhook payload
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  validateWebhookPayload(payload: any): WebhookPayload {
-    const requiredFields = [
-      'TransactionToken',
-      'CompanyRef',
-      'TransactionApproval',
-      'TransactionCurrency',
-      'TransactionAmount',
-    ];
+  validateWebhookPayload(payload: DPOWebhookPayload): boolean {
+    // Check payload is not null/undefined
+    if (!payload || typeof payload !== 'object') {
+      console.error('Webhook payload is not a valid object');
+      return false;
+    }
+
+    // Essential fields that must exist
+    const requiredFields: (keyof DPOWebhookPayload)[] = ['TransToken', 'CompanyRef', 'Result'];
 
     for (const field of requiredFields) {
-      if (!payload[field]) {
-        throw new Error(`Missing required webhook field: ${field}`);
+      if (!(field in payload) || !payload[field]) {
+        console.error(`Missing required webhook field: ${field}`);
+        return false;
       }
     }
 
-    return payload as WebhookPayload;
+    // For successful payments, we expect these additional fields
+    if (payload.Result === '000') {
+      if (!payload.TransactionAmount || payload.TransactionAmount <= 0) {
+        console.error('Successful payment missing valid TransactionAmount');
+        return false;
+      }
+
+      if (!payload.TransactionCurrency) {
+        console.error('Successful payment missing TransactionCurrency');
+        return false;
+      }
+    }
+
+    return true;
   }
 }

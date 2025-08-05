@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { DPOService } from '../dpo-payment/dpo.service';
-import { PendingReservation } from './types/bookin.types';
+import { DPOWebhookPayload, PendingReservation } from './types/bookin.types';
 import { CreatePaymentTokenDto } from './dto/create-payment-booking.dto';
 import prismaClient from '../config/prisma';
 import { BadRequestException } from '../common/utils/catch-errors';
@@ -14,6 +14,7 @@ import {
   mapDPOPaymentStatus,
   validateDPOPayment,
 } from '../utils/payment-mapping';
+import { Decimal } from '@prisma/client/runtime/library';
 
 export class BookingService {
   private dpoService: DPOService;
@@ -214,8 +215,10 @@ export class BookingService {
 
       // Check if payment was successful
       const isPaymentSuccessful =
-        verificationResponse.transactionApproval === 'Y' ||
-        verificationResponse.transactionApproval === 'Approved';
+        verificationResponse.result === '000' &&
+        verificationResponse.transactionApproval &&
+        verificationResponse.transactionApproval !== '' &&
+        verificationResponse.transactionApproval !== 'null';
 
       console.log('Is payment successful:', isPaymentSuccessful);
 
@@ -297,13 +300,33 @@ export class BookingService {
       const paymentStatus = mapDPOPaymentStatus(verificationResponse);
 
       // Create payment record with proper enum values
+
       await prismaClient.payment.create({
         data: {
           bookingId: booking.id,
+          customerId: customerRecord.id,
           amount: verificationResponse.transactionAmount || pendingReservation.totalCost,
           method: paymentMethod,
           transactionId: verificationResponse.accRef || pendingReservation.transToken,
           status: paymentStatus,
+          // Add DPO-specific fields with proper null checks
+          dpoTransToken: pendingReservation.transToken,
+          dpoApprovalCode: verificationResponse.transactionApproval || null,
+          dpoSettlementDate: verificationResponse.transactionSettlementDate || null,
+          dpoCustomerCredit: verificationResponse.customerCredit || null,
+          dpoFraudAlert: verificationResponse.fraudAlert || null,
+          dpoFraudExplanation: verificationResponse.fraudExplanation || null,
+          dpoResultCode: verificationResponse.result || null,
+          dpoResultExplanation: verificationResponse.resultExplanation || null,
+          dpoTransactionAmount: verificationResponse.transactionAmount
+            ? new Decimal(verificationResponse.transactionAmount.toString())
+            : null,
+          dpoTransactionNetAmount: verificationResponse.transactionNetAmount
+            ? new Decimal(verificationResponse.transactionNetAmount.toString())
+            : null,
+          dpoCurrency: verificationResponse.transactionCurrency || null,
+          dpoCustomerCreditType: verificationResponse.customerCreditType || null,
+          dpoFraudAlertCode: verificationResponse.fraudAlert || null, // You might want to map this differently
         },
       });
 
@@ -354,33 +377,47 @@ export class BookingService {
   /**
    * Handle DPO webhook for payment notifications
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  public async handlePaymentWebhook(payload: any, signature?: string) {
+
+  public async handlePaymentWebhook(payload: DPOWebhookPayload) {
     try {
-      // Validate webhook signature if provided
-      if (signature && !this.dpoService.validateWebhookPayload(JSON.stringify(payload))) {
-        throw new Error('Invalid webhook signature');
+      console.log('Received DPO webhook payload:', payload);
+
+      // Validate webhook payload structure
+      if (!this.dpoService.validateWebhookPayload(payload)) {
+        throw new Error('Invalid webhook payload structure');
       }
 
-      const { CompanyRef: reservationReference, TransToken: transToken, Result: result } = payload;
+      // TODO: Implement signature validation when DPO provides it
+      // if (signature && !this.dpoService.validateWebhookSignature(payload, signature)) {
+      //   throw new Error('Invalid webhook signature');
+      // }
 
-      if (!reservationReference || !transToken) {
-        throw new Error('Invalid webhook payload');
-      }
+      const { CompanyRef: reservationReference, Result: result } = payload;
 
-      // If payment is successful, complete the reservation
+      console.log(`Processing webhook for reservation: ${reservationReference}, result: ${result}`);
+
+      // If payment is successful (DPO returns '000' for success)
       if (result === '000') {
         try {
           await this.verifyPaymentAndCompleteReservation(reservationReference);
+          console.log(`Webhook successfully processed reservation: ${reservationReference}`);
         } catch (error) {
           console.error('Webhook reservation completion error:', error);
-          // Don't throw here as the webhook should still return success
+          // Log the error but don't throw - webhook should still return success
+          // to prevent DPO from retrying infinitely
         }
+      } else {
+        console.log(
+          `Payment not successful for reservation ${reservationReference}, result: ${result}`,
+        );
+        // You might want to update the reservation status to failed here
       }
 
       return { status: 'success', message: 'Webhook processed' };
     } catch (error) {
       console.error('Webhook processing error:', error);
+      // For production, you might want to return success anyway to prevent retries
+      // unless it's a critical validation error
       throw error;
     }
   }
