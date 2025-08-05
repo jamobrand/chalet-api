@@ -313,6 +313,9 @@ export class BookingService {
       const paymentMethod = mapDPOPaymentMethod(verificationResponse);
       const paymentStatus = mapDPOPaymentStatus(verificationResponse);
 
+      console.log('Mapped payment method:', paymentMethod);
+      console.log('Mapped payment status:', paymentStatus);
+
       // Create payment record with proper enum values
 
       await prismaClient.payment.create({
