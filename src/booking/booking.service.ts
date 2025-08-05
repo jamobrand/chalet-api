@@ -159,7 +159,7 @@ export class BookingService {
         paymentCurrency: 'KES',
         companyRef: reservationReference,
         redirectUrl: `${config.CHALET_USER_URL}/payment/success?ref=${reservationReference}`,
-        backUrl: `${config.CHALET_USER_URL}/payment/cancel?ref=${reservationReference}`,
+        backUrl: `${config.CHALET_USER_URL}/payment/cancelled?ref=${reservationReference}`,
         customer: prepareReservationTokenDto.customer,
         services: services.map((service) => ({
           serviceType: service.serviceType,
