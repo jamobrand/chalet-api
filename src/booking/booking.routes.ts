@@ -13,7 +13,10 @@ bookingRoutes.post('/verify', bookingController.verifyPayment);
 bookingRoutes.get('/status/:bookingId', bookingController.getBookingStatus);
 
 // Get reservation status by booking reference
-bookingRoutes.get('/status/:reservationReference', bookingController.getBookingStatusByReference);
+bookingRoutes.get(
+  '/status/reservation/reference/:reservationReference',
+  bookingController.getBookingStatusByReference,
+);
 
 // DPO webhook endpoint
 bookingRoutes.post('/webhook/dpo', bookingController.handleDPOWebhook);
