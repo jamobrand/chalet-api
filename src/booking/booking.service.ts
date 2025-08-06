@@ -170,7 +170,7 @@ export class BookingService {
 
       if (tokenResponse.result !== '000') {
         throw new Error(
-          `Payment token creation failed: ${tokenResponse.result} ${tokenResponse.resultExplanation}`,
+          `Payment processing failed: ${tokenResponse.result} ${tokenResponse.resultExplanation}`,
         );
       }
 
@@ -207,7 +207,7 @@ export class BookingService {
       }
 
       if (!pendingReservation.transToken) {
-        throw new Error('Payment token not found for this reservation');
+        throw new Error('Payment details not found for this reservation');
       }
 
       // Verify payment with DPO
